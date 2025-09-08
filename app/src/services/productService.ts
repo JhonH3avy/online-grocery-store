@@ -7,14 +7,20 @@ export interface ProductFilters {
   subcategory?: string;
   search?: string;
   limit?: number;
-  offset?: number;
+  page?: number;
+  availability?: boolean;
+  featured?: boolean;
 }
 
 export interface ProductsResponse {
   products: Product[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  };
 }
 
 export const productService = {
@@ -24,36 +30,36 @@ export const productService = {
     
     if (filters?.category) queryParams.append('category', filters.category);
     if (filters?.subcategory) queryParams.append('subcategory', filters.subcategory);
-    if (filters?.search) queryParams.append('search', filters.search);
+    if (filters?.search) queryParams.append('q', filters.search);
     if (filters?.limit) queryParams.append('limit', filters.limit.toString());
-    if (filters?.offset) queryParams.append('offset', filters.offset.toString());
+    if (filters?.page) queryParams.append('page', filters.page.toString());
+    if (filters?.availability !== undefined) queryParams.append('availability', filters.availability.toString());
+    if (filters?.featured !== undefined) queryParams.append('featured', filters.featured.toString());
 
     const endpoint = `/products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return apiClient.get<ProductsResponse>(endpoint);
   },
 
-  // Get single product by ID
-  getProduct: async (id: string): Promise<ApiResponse<Product>> => {
-    return apiClient.get<Product>(`/products/${id}`);
-  },
-
-  // Get products by category
-  getProductsByCategory: async (categoryId: string): Promise<ApiResponse<Product[]>> => {
-    return apiClient.get<Product[]>(`/products/category/${categoryId}`);
-  },
-
   // Search products
-  searchProducts: async (query: string): Promise<ApiResponse<Product[]>> => {
-    return apiClient.get<Product[]>(`/products/search?q=${encodeURIComponent(query)}`);
+  searchProducts: async (query: string, filters?: Omit<ProductFilters, 'search'>): Promise<ApiResponse<ProductsResponse>> => {
+    const queryParams = new URLSearchParams();
+    queryParams.append('q', query);
+    
+    if (filters?.category) queryParams.append('category', filters.category);
+    if (filters?.subcategory) queryParams.append('subcategory', filters.subcategory);
+    if (filters?.limit) queryParams.append('limit', filters.limit.toString());
+    if (filters?.page) queryParams.append('page', filters.page.toString());
+
+    return apiClient.get<ProductsResponse>(`/products/search?${queryParams.toString()}`);
   },
 
   // Get featured products
-  getFeaturedProducts: async (): Promise<ApiResponse<Product[]>> => {
-    return apiClient.get<Product[]>('/products/featured');
+  getFeaturedProducts: async (limit = 8): Promise<ApiResponse<Product[]>> => {
+    return apiClient.get<Product[]>(`/products/featured?limit=${limit}`);
   },
 
-  // Check product availability
-  checkAvailability: async (id: string): Promise<ApiResponse<{ available: boolean; stock: number }>> => {
-    return apiClient.get<{ available: boolean; stock: number }>(`/products/availability/${id}`);
+  // Get single product by ID
+  getProduct: async (id: string): Promise<ApiResponse<Product>> => {
+    return apiClient.get<Product>(`/products/${id}`);
   },
 };

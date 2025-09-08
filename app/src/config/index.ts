@@ -29,6 +29,7 @@ export const features = {
   analytics: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',
   debug: import.meta.env.VITE_ENABLE_DEBUG === 'true',
   maintenance: import.meta.env.VITE_MAINTENANCE_MODE === 'true',
+  useApiData: import.meta.env.VITE_USE_API_DATA !== 'false', // Default to true unless explicitly disabled
 } as const;
 
 // External Services Configuration

@@ -10,34 +10,62 @@ import { productsData, categories } from './data/products'
 import { toast, Toaster } from 'sonner'
 import { Alert, AlertDescription } from './components/ui/alert'
 import { Button } from './components/ui/button'
+import { config } from './config'
 
 // API Services
 import { healthCheck } from './services/api'
 import { productService } from './services/productService'
 import { categoryService } from './services/categoryService'
+import { cartService } from './services/cartService'
 import { useApi } from './hooks/useApi'
 
 export default function App() {
   const [cartItems, setCartItems] = useState<Record<string, number>>({})
+  const [cart, setCart] = useState<any>(null)
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg')
   const [activeCategory, setActiveCategory] = useState('frutas')
   const [activeSubcategory, setActiveSubcategory] = useState('citricas')
   const [useLocalData, setUseLocalData] = useState(false)
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
 
-  // API data fetching
+  // API data fetching with proper error handling
   const { data: apiCategories, loading: categoriesLoading, error: categoriesError } = useApi(
-    () => categoryService.getCategories(),
+    () => config.features.useApiData ? categoryService.getCategories() : Promise.resolve({ success: false, data: [] }),
     []
   )
 
   const { data: apiProducts, loading: productsLoading, error: productsError, refetch: refetchProducts } = useApi(
-    () => productService.getProducts({ 
-      category: activeCategory, 
-      subcategory: activeSubcategory 
-    }),
+    () => {
+      if (!config.features.useApiData) return Promise.resolve({ success: false, data: { products: [], pagination: { total: 0, page: 1, limit: 10, totalPages: 0, hasMore: false } } })
+      
+      // The API uses string category names, not UUIDs
+      return productService.getProducts({ 
+        category: activeCategory, // Use the activeCategory directly since it matches the API
+        limit: 20
+      })
+    },
     [activeCategory, activeSubcategory]
   )
+
+  // Load cart if API is enabled
+  useEffect(() => {
+    const loadCart = async () => {
+      if (config.features.useApiData && serverStatus === 'online') {
+        try {
+          const response = await cartService.getCart()
+          if (response.success) {
+            setCart(response.data)
+          }
+        } catch (err) {
+          console.error('Failed to load cart:', err)
+        }
+      }
+    }
+
+    if (serverStatus === 'online') {
+      loadCart()
+    }
+  }, [serverStatus])
 
   // Check server health on component mount
   useEffect(() => {
@@ -69,35 +97,101 @@ export default function App() {
     productsData.filter(p => p.category === activeCategory && p.subcategory === activeSubcategory) :
     (apiProducts?.products || [])
 
-  const handleAddToCart = (product: Product, quantity: number) => {
+  const handleAddToCart = async (product: Product, quantity: number) => {
+    // Update local cart state immediately for better UX
     setCartItems(prev => ({
       ...prev,
       [product.id]: (prev[product.id] || 0) + quantity
     }))
+
+    // Try to sync with API if enabled
+    if (config.features.useApiData && serverStatus === 'online') {
+      try {
+        const response = await cartService.addToCart({ 
+          productId: product.id, 
+          quantity 
+        })
+        if (response.success && response.data) {
+          setCart(response.data)
+          // Update cart items from API response
+          const newCartItems: Record<string, number> = {}
+          response.data.items.forEach((item: any) => {
+            newCartItems[item.productId] = item.quantity
+          })
+          setCartItems(newCartItems)
+        }
+      } catch (err) {
+        console.error('Failed to sync cart with API:', err)
+        // Keep local cart state as fallback
+      }
+    }
+
     toast.success(`${product.name} agregado al carrito`)
   }
 
-  const handleQuantityChange = (productId: string, quantity: number) => {
+  const handleQuantityChange = async (productId: string, quantity: number) => {
     if (quantity <= 0) {
-      setCartItems(prev => {
-        const newItems = { ...prev }
-        delete newItems[productId]
-        return newItems
-      })
-    } else {
-      setCartItems(prev => ({
-        ...prev,
-        [productId]: quantity
-      }))
+      await handleRemoveItem(productId)
+      return
+    }
+
+    // Update local state immediately
+    setCartItems(prev => ({
+      ...prev,
+      [productId]: quantity
+    }))
+
+    // Sync with API if enabled
+    if (config.features.useApiData && serverStatus === 'online' && cart) {
+      try {
+        const cartItem = cart.items.find((item: any) => item.productId === productId)
+        if (cartItem) {
+          const response = await cartService.updateCartItem(cartItem.id, { quantity })
+          if (response.success && response.data) {
+            setCart(response.data)
+            // Update cart items from API response
+            const newCartItems: Record<string, number> = {}
+            response.data.items.forEach((item: any) => {
+              newCartItems[item.productId] = item.quantity
+            })
+            setCartItems(newCartItems)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to update cart item:', err)
+      }
     }
   }
 
-  const handleRemoveItem = (productId: string) => {
+  const handleRemoveItem = async (productId: string) => {
+    // Update local state immediately
     setCartItems(prev => {
       const newItems = { ...prev }
       delete newItems[productId]
       return newItems
     })
+
+    // Sync with API if enabled
+    if (config.features.useApiData && serverStatus === 'online' && cart) {
+      try {
+        const cartItem = cart.items.find((item: any) => item.productId === productId)
+        if (cartItem) {
+          const response = await cartService.removeFromCart(cartItem.id)
+          if (response.success && response.data) {
+            setCart(response.data)
+            // Update cart items from API response
+            const newCartItems: Record<string, number> = {}
+            response.data.items.forEach((item: any) => {
+              newCartItems[item.productId] = item.quantity
+            })
+            setCartItems(newCartItems)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to remove cart item:', err)
+      }
+    }
+
     const product = (useLocalData ? productsData : apiProducts?.products || productsData).find(p => p.id === productId)
     if (product) {
       toast.success(`${product.name} eliminado del carrito`)
