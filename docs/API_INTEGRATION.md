@@ -21,12 +21,13 @@ Frontend (React + Vite) → API Services → Backend (Node.js + Express) → Dat
 
 ### Products
 - **GET** `/api/products` - Get all products (with filtering)
-  - Query params: `category`, `subcategory`, `search`, `limit`, `offset`, `featured`
-- **GET** `/api/products/search?q={query}` - Search products
+  - Query params: `category`, `subcategory`, `search`, `limit`, `offset`, `page`, `featured`
+  - **Database-integrated** with inventory tracking
+- **GET** `/api/products/search?q={query}` - Search products across names, descriptions, categories
 - **GET** `/api/products/featured` - Get featured products
-- **GET** `/api/products/:id` - Get single product
-- **GET** `/api/products/category/:categoryId` - Get products by category
-- **GET** `/api/products/availability/:id` - Check product availability
+- **GET** `/api/products/:id` - Get single product with reviews and ratings
+- **GET** `/api/products/category/:categoryId` - Get products by category (slug or ID)
+- **GET** `/api/products/availability/:id` - Check product availability and stock
 
 ### Cart (Enhanced)
 - **GET** `/api/cart` - Get user's cart
@@ -96,7 +97,7 @@ config.app.environment // development/production
 
 ### Current Status
 - ✅ **Categories**: Fully database-integrated
-- ⚠️ **Products**: Using mock data (ready for database migration)
+- ✅ **Products**: Fully database-integrated with inventory tracking
 - ⚠️ **Cart**: Using mock data (API structure ready)
 - ⚠️ **Orders**: Using mock data (API structure ready)
 
@@ -155,21 +156,22 @@ curl http://localhost:5000/api/products/featured
 
 ## Next Steps
 
-1. **Complete Database Migration**:
-   - Migrate products endpoint to use Prisma/PostgreSQL
-   - Implement cart database operations
-   - Add orders database integration
+1. **Complete Remaining Endpoints**:
+   - Migrate cart endpoint to use Prisma/PostgreSQL
+   - Implement orders database operations
+   - Add user authentication with database integration
 
 2. **Authentication System**:
-   - User registration/login
-   - Session management with Redis
-   - Protected routes
+   - User registration/login with password hashing
+   - JWT token management with Redis sessions
+   - Protected routes and role-based access
 
 3. **Advanced Features**:
-   - Product inventory management
-   - Order tracking
-   - Payment integration
-   - Admin dashboard
+   - Real-time inventory updates with webhooks
+   - Order tracking and status management
+   - Payment integration (Stripe/PayPal)
+   - Email notifications
+   - Admin dashboard for product/order management
 
 ## Configuration Options
 
