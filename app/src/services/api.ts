@@ -1,7 +1,7 @@
-// API Configuration
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api'  // In production, nginx will proxy to backend
-  : 'http://localhost:5000/api'; // In development, direct to backend
+import { config } from '../config';
+
+// API Configuration - now using centralized config
+const API_BASE_URL = config.api.baseUrl;
 
 // API Response Types
 export interface ApiResponse<T = any> {
@@ -14,9 +14,13 @@ export interface ApiResponse<T = any> {
 // HTTP Client Class
 class ApiClient {
   private baseUrl: string;
+  private timeout: number;
+  private retries: number;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    this.timeout = config.api.timeout;
+    this.retries = config.api.retries;
   }
 
   private async request<T>(
@@ -25,34 +29,57 @@ class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     
-    const config: RequestInit = {
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    
+    const requestConfig: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      signal: controller.signal,
       ...options,
     };
 
-    try {
-      const response = await fetch(url, config);
-      const data = await response.json();
+    let lastError: Error | null = null;
 
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+    // Retry logic
+    for (let attempt = 0; attempt <= this.retries; attempt++) {
+      try {
+        const response = await fetch(url, requestConfig);
+        clearTimeout(timeoutId);
+        
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
+
+        return {
+          success: true,
+          data: data.data || data,
+          message: data.message,
+        };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error');
+        
+        // Don't retry on the last attempt
+        if (attempt === this.retries) break;
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
       }
-
-      return {
-        success: true,
-        data: data.data || data,
-        message: data.message,
-      };
-    } catch (error) {
-      console.error('API request failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
     }
+
+    // If we get here, all retries failed
+    clearTimeout(timeoutId);
+    console.error('API request failed after retries:', lastError);
+    
+    return {
+      success: false,
+      error: lastError?.message || 'Unknown error occurred',
+    };
   }
 
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
