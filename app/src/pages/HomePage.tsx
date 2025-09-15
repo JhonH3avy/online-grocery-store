@@ -17,6 +17,8 @@ import { healthCheck } from '../services/api'
 import { productService } from '../services/productService'
 import { categoryService } from '../services/categoryService'
 import { cartService } from '../services/cartService'
+import { Navigation } from '../components/Navigation'
+import { AuthModal } from '../components/auth'
 
 // HomePage component
 export function HomePage() {
@@ -27,7 +29,11 @@ export function HomePage() {
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg')
   const [activeCategory, setActiveCategory] = useState('')
   const [activeSubcategory, setActiveSubcategory] = useState('')
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  const [hasInitializedCart, setHasInitializedCart] = useState(false)
+  const [lastAuthState, setLastAuthState] = useState<boolean | null>(null)
   
   // API data state
   const [categories, setCategories] = useState<any[]>([])
@@ -55,6 +61,7 @@ export function HomePage() {
         await loadCategories()
         await loadProducts() // Load all products initially
         await loadCart()
+        setHasInitializedCart(true)
         
       } catch (error) {
         console.error('Failed to initialize app:', error)
@@ -145,25 +152,23 @@ export function HomePage() {
   // Load cart from API or localStorage
   const loadCart = async () => {
     try {
-      if (isAuthenticated) {
-        // For authenticated users, get cart from server
-        const response = await cartService.getCart()
-        if (response.success && response.data) {
-          setCart(response.data)
-          // Update cart items from API response
-          const newCartItems: Record<string, number> = {}
-          const newCartProducts: Product[] = []
-          response.data.items?.forEach((item: any) => {
-            newCartItems[item.productId] = item.quantity
-            if (item.product) {
-              newCartProducts.push(item.product)
-            }
-          })
-          setCartItems(newCartItems)
-          setCartProducts(newCartProducts)
-        }
-      } else {
-        // For anonymous users, get cart from localStorage and fetch product details
+      // Always try to get cart from server first (works for both authenticated and anonymous users)
+      const response = await cartService.getCart()
+      if (response.success && response.data) {
+        setCart(response.data)
+        // Update cart items from API response
+        const newCartItems: Record<string, number> = {}
+        const newCartProducts: Product[] = []
+        response.data.items?.forEach((item: any) => {
+          newCartItems[item.productId] = item.quantity
+          if (item.product) {
+            newCartProducts.push(item.product)
+          }
+        })
+        setCartItems(newCartItems)
+        setCartProducts(newCartProducts)
+      } else if (!isAuthenticated) {
+        // If server call failed and user is anonymous, fallback to localStorage
         const localCartItems = cartService.getLocalCartItems()
         const newCartItems: Record<string, number> = {}
         
@@ -195,18 +200,40 @@ export function HomePage() {
 
   // Reload cart when authentication status changes
   useEffect(() => {
-    loadCart()
+    // Skip if this is the initial render or we haven't done the initial cart load yet
+    if (serverStatus === 'checking' || !hasInitializedCart) {
+      return
+    }
     
-    // If user just logged in, migrate their local cart
+    // Check if authentication state actually changed
+    if (lastAuthState === null) {
+      // First time setting the authentication state after initialization
+      setLastAuthState(isAuthenticated)
+      return
+    }
+    
+    if (lastAuthState === isAuthenticated) {
+      // No actual change in authentication state
+      return
+    }
+    
+    // Authentication state actually changed - update cart
+    setLastAuthState(isAuthenticated)
+    
     if (isAuthenticated) {
       cartService.migrateLocalCart().then(() => {
         // Reload cart after migration
         loadCart()
       }).catch(error => {
         console.error('Failed to migrate local cart:', error)
+        // Still load cart even if migration fails
+        loadCart()
       })
+    } else {
+      // User logged out, just load cart normally (anonymous cart)
+      loadCart()
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, serverStatus, hasInitializedCart])
 
   // Reload products when category/subcategory changes
   useEffect(() => {
@@ -346,15 +373,58 @@ export function HomePage() {
     }
   }
 
-    const handleCheckout = () => {
-    if (!isAuthenticated) {
-      toast.info('Please sign in to checkout');
+  const handleCheckout = async () => {
+    if (Object.keys(cartItems).length === 0) {
+      toast.error('Your cart is empty');
       return;
     }
-    
-    // In a real app, this would navigate to checkout page
-    console.log('Proceeding to checkout with cart:', cartItems)
-    toast.success('Proceeding to checkout...')
+
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      toast.error('Please sign in to proceed with checkout');
+      setShowAuthModal(true);
+      return;
+    }
+
+    try {
+      // For now, use dummy shipping and payment data
+      // In a real app, this would open a checkout form to collect this information
+      const checkoutData = {
+        shippingAddress: {
+          street: '123 Main St',
+          city: 'Bogotá',
+          state: 'Bogotá D.C.',
+          zipCode: '110111',
+          country: 'Colombia'
+        },
+        paymentMethod: {
+          type: 'credit_card' as const
+        },
+        notes: 'Order placed by authenticated user'
+      };
+
+      const response = await cartService.checkout(checkoutData);
+      
+      if (response.success) {
+        toast.success(`Order placed successfully! Order ID: ${response.data?.orderId}`);
+        
+        // Clear local cart state
+        setCartItems({});
+        setCartProducts([]);
+        setCart(null);
+        
+        // Reload cart from server to confirm it's empty
+        await loadCart();
+        
+        // Close cart drawer if open
+        setCartDrawerOpen(false);
+      } else {
+        throw new Error(response.error || 'Checkout failed');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast.error('Failed to complete checkout. Please try again.');
+    }
   }
 
   const retryConnection = async () => {
@@ -650,6 +720,30 @@ export function HomePage() {
           </div>
         </div>
       </footer>
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        cartItems={cartItems}
+        products={cartProducts}
+        weightUnit={weightUnit}
+        onWeightUnitChange={setWeightUnit}
+        onQuantityChange={handleQuantityChange}
+        onRemoveItem={handleRemoveItem}
+        onCheckout={handleCheckout}
+        open={cartDrawerOpen}
+        onOpenChange={setCartDrawerOpen}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultMode="login"
+        onSuccess={() => {
+          setShowAuthModal(false);
+          toast.success('Successfully signed in! You can now proceed with checkout.');
+        }}
+      />
     </div>
   )
 }

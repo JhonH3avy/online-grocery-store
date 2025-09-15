@@ -15,6 +15,8 @@ interface CartDrawerProps {
   onQuantityChange: (productId: string, quantity: number) => void
   onRemoveItem: (productId: string) => void
   onCheckout: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function CartDrawer({ 
@@ -24,7 +26,9 @@ export function CartDrawer({
   onWeightUnitChange,
   onQuantityChange,
   onRemoveItem,
-  onCheckout
+  onCheckout,
+  open = false,
+  onOpenChange
 }: CartDrawerProps) {
   const itemsInCart = Object.entries(cartItems).filter(([_, quantity]) => quantity > 0)
   const totalItems = itemsInCart.reduce((sum, [_, quantity]) => sum + quantity, 0)
@@ -49,19 +53,7 @@ export function CartDrawer({
   }, 0)
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button className="relative">
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          Carrito
-          {totalItems > 0 && (
-            <Badge className="absolute -top-2 -right-2 min-w-[1.25rem] h-5 flex items-center justify-center text-xs">
-              {totalItems}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
-      
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:w-[400px]">
         <SheetHeader>
           <SheetTitle>Carrito de Compras</SheetTitle>

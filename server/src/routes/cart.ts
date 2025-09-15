@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../services/prisma';
-import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
+import { optionalAuth, authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -475,6 +475,161 @@ router.delete('/clear', optionalAuth, async (req: AuthenticatedRequest, res) => 
     return res.status(500).json({
       success: false,
       message: 'Failed to clear cart',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// POST /api/cart/checkout - Convert cart to order and checkout
+router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { shippingAddress, paymentMethod, notes } = req.body;
+    
+    // User is guaranteed to exist because of authenticateToken middleware
+    const userId = req.user!.id;
+
+    // Validate required fields
+    if (!shippingAddress || !paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Shipping address and payment method are required'
+      });
+    }
+
+    // Get current cart items
+    const cartItems = await prisma.cartItem.findMany({
+      where: { userId },
+      include: {
+        product: {
+          include: {
+            inventory: true
+          }
+        }
+      }
+    });
+
+    if (cartItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cart is empty'
+      });
+    }
+
+    // Check inventory for all items
+    for (const item of cartItems) {
+      const availableStock = item.product.inventory?.quantity || 0;
+      if (availableStock < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          message: `Insufficient stock for ${item.product.name}. Available: ${availableStock}, Requested: ${item.quantity}`
+        });
+      }
+    }
+
+    // Create or find shipping address
+    let deliveryAddressId: string;
+    
+    if (userId !== 'anonymous-user') {
+      // For authenticated users, create a new address record
+      const address = await prisma.address.create({
+        data: {
+          userId,
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode,
+          country: shippingAddress.country || 'Colombia',
+          isDefault: false
+        }
+      });
+      deliveryAddressId = address.id;
+    } else {
+      // For anonymous users, create a temporary address (you might want to handle this differently)
+      const address = await prisma.address.create({
+        data: {
+          userId: 'anonymous-user',
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode,
+          country: shippingAddress.country || 'Colombia',
+          isDefault: false
+        }
+      });
+      deliveryAddressId = address.id;
+    }
+
+    // Calculate order totals
+    const subtotal = cartItems.reduce((sum, item) => {
+      const price = parseFloat(item.product.price.toString());
+      return sum + (price * item.quantity);
+    }, 0);
+    const deliveryFee = subtotal >= 50 ? 0 : 5.99; // Free delivery over $50
+    const total = subtotal + deliveryFee;
+
+    // Create the order
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        deliveryAddressId,
+        paymentMethod: paymentMethod.type || paymentMethod,
+        subtotal: Math.round(subtotal * 100) / 100,
+        deliveryFee: Math.round(deliveryFee * 100) / 100,
+        total: Math.round(total * 100) / 100,
+        status: 'PENDING',
+        notes: notes || '',
+        orderItems: {
+          create: cartItems.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: parseFloat(item.product.price.toString()),
+            subtotal: parseFloat(item.product.price.toString()) * item.quantity
+          }))
+        }
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: true
+          }
+        },
+        deliveryAddress: true
+      }
+    });
+
+    // Update inventory
+    for (const item of cartItems) {
+      if (item.product.inventory) {
+        await prisma.inventory.update({
+          where: { productId: item.productId },
+          data: {
+            quantity: {
+              decrement: item.quantity
+            }
+          }
+        });
+      }
+    }
+
+    // Clear the cart
+    await prisma.cartItem.deleteMany({
+      where: { userId }
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        orderId: order.id,
+        message: 'Order placed successfully'
+      },
+      message: 'Checkout completed successfully'
+    });
+
+  } catch (error) {
+    console.error('Error during checkout:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process checkout',
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }

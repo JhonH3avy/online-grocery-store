@@ -4,14 +4,25 @@ import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/button';
 import { UserProfile, AuthModal } from './auth';
 import { ShoppingCart, Leaf, UserIcon } from 'lucide-react';
-import { CartDrawer } from './CartDrawer';
 
-export const Navigation: React.FC = () => {
+interface NavigationProps {
+  cartItems?: Record<string, number>;
+  products?: any[];
+  onCartDrawerOpen?: () => void;
+}
+
+export const Navigation: React.FC<NavigationProps> = ({ 
+  cartItems = {}, 
+  products = [],
+  onCartDrawerOpen
+}) => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
-  const [showCartDrawer, setShowCartDrawer] = useState(false);
+
+  // Calculate total items in cart
+  const totalCartItems = Object.values(cartItems).reduce((sum: number, quantity: unknown) => sum + (quantity as number), 0);
 
   return (
     <>
@@ -58,10 +69,15 @@ export const Navigation: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 className="text-white hover:bg-white/10 relative"
-                onClick={() => setShowCartDrawer(true)}
+                onClick={onCartDrawerOpen || (() => {})}
               >
                 <ShoppingCart className="h-5 w-5" />
                 <span className="ml-2 hidden sm:inline">Cart</span>
+                {totalCartItems > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                    {totalCartItems}
+                  </span>
+                )}
               </Button>
 
               {/* Authentication Section */}
@@ -109,8 +125,6 @@ export const Navigation: React.FC = () => {
         defaultMode={authModalMode}
         onSuccess={() => setShowAuthModal(false)}
       />
-
-      {/* Note: CartDrawer would need to be integrated properly with cart state */}
     </>
   );
 };

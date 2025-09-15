@@ -11,7 +11,9 @@ export default function App() {
     <AuthProvider>
       <Router>
         <div className="min-h-screen bg-white">
+          {/* Global Navigation */}
           <Navigation />
+          
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/profile" element={<UserPage />} />

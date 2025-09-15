@@ -257,14 +257,8 @@ export const cartService = {
     }
   },
 
-  // Checkout cart (requires authentication)
+  // Checkout cart (supports both authenticated and anonymous users)
   checkout: async (data: CheckoutRequest): Promise<ApiResponse<{ orderId: string; message: string }>> => {
-    if (!isAuthenticated()) {
-      return {
-        success: false,
-        error: 'Authentication required for checkout'
-      };
-    }
     return apiClient.post<{ orderId: string; message: string }>('/cart/checkout', data);
   },
 

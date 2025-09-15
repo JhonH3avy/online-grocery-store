@@ -33,9 +33,13 @@ class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
     
+    // Get auth token from localStorage
+    const authToken = localStorage.getItem('auth_token');
+    
     const requestConfig: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(authToken && { 'Authorization': `Bearer ${authToken}` }),
         ...options.headers,
       },
       signal: controller.signal,
