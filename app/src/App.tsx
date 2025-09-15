@@ -49,7 +49,7 @@ export default function App() {
         
         // Load initial data
         await loadCategories()
-        await loadProducts()
+        await loadProducts() // Load all products initially
         await loadCart()
         
       } catch (error) {
@@ -99,17 +99,33 @@ export default function App() {
     try {
       const filters: any = { limit: 20 }
       
-      if (categoryFilter || activeCategory) {
-        filters.category = categoryFilter || activeCategory
+      // Convert category ID to category name for API
+      const categoryToUse = categoryFilter || activeCategory
+      if (categoryToUse && categories.length > 0) {
+        const category = categories.find(cat => cat.id === categoryToUse)
+        if (category) {
+          filters.category = category.name.toLowerCase()
+        }
       }
       
-      if (subcategoryFilter || activeSubcategory) {
-        filters.subcategory = subcategoryFilter || activeSubcategory
+      // Convert subcategory ID to subcategory name for API
+      const subcategoryToUse = subcategoryFilter || activeSubcategory
+      if (subcategoryToUse && categories.length > 0) {
+        const category = categories.find(cat => cat.id === (categoryFilter || activeCategory))
+        if (category?.subcategories) {
+          const subcategory = category.subcategories.find((sub: any) => sub.id === subcategoryToUse)
+          if (subcategory) {
+            filters.subcategory = subcategory.name.toLowerCase()
+          }
+        }
       }
+
+      console.log('Loading products with filters:', filters) // Debug log
 
       const response = await productService.getProducts(filters)
       if (response.success && response.data) {
         setProducts(response.data.products)
+        console.log('Products loaded:', response.data.products.length) // Debug log
       } else {
         throw new Error('Failed to load products')
       }
@@ -143,10 +159,10 @@ export default function App() {
 
   // Reload products when category/subcategory changes
   useEffect(() => {
-    if (activeCategory && serverStatus === 'online') {
+    if (serverStatus === 'online' && categories.length > 0) {
       loadProducts()
     }
-  }, [activeCategory, activeSubcategory])
+  }, [activeCategory, activeSubcategory, categories])
 
   const handleAddToCart = async (product: Product, quantity: number) => {
     if (serverStatus !== 'online') {
@@ -441,7 +457,7 @@ export default function App() {
         </div>
 
         {categories.length > 0 && (
-          <Tabs value={activeCategory} onValueChange={(value) => {
+          <Tabs value={activeCategory} onValueChange={(value: string) => {
             setActiveCategory(value)
             const category = categories.find(cat => cat.id === value)
             if (category?.subcategories?.[0]) {
