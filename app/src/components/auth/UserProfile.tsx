@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { Button } from '../ui/button';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import {
   DropdownMenu,
@@ -19,18 +18,19 @@ import {
 } from 'lucide-react';
 
 interface UserProfileProps {
+  onMyAccount?: () => void;
   onOrderHistory?: () => void;
   onAddresses?: () => void;
   onSettings?: () => void;
 }
 
 export const UserProfile: React.FC<UserProfileProps> = ({
+  onMyAccount,
   onOrderHistory,
   onAddresses,
   onSettings,
 }) => {
   const { user, logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
 
   if (!user) return null;
 
@@ -41,25 +41,23 @@ export const UserProfile: React.FC<UserProfileProps> = ({
   const handleLogout = async () => {
     try {
       await logout();
-      setIsOpen(false);
     } catch (error) {
       console.error('Logout failed:', error);
-      setIsOpen(false);
     }
   };
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+    <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <button className="relative h-10 w-10 rounded-full bg-transparent border-0 cursor-pointer hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20">
           <Avatar className="h-10 w-10">
             <AvatarFallback className="bg-primary text-primary-foreground">
               {getInitials(user.firstName, user.lastName)}
             </AvatarFallback>
           </Avatar>
-        </Button>
+        </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align="end">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
@@ -71,6 +69,13 @@ export const UserProfile: React.FC<UserProfileProps> = ({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        
+        {onMyAccount && (
+          <DropdownMenuItem onClick={onMyAccount} className="cursor-pointer">
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>My Account</span>
+          </DropdownMenuItem>
+        )}
         
         {onOrderHistory && (
           <DropdownMenuItem onClick={onOrderHistory} className="cursor-pointer">

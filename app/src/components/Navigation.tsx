@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from './ui/button';
 import { UserProfile, AuthModal } from './auth';
@@ -18,6 +18,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
 
@@ -39,31 +40,6 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <Leaf className="h-8 w-8 text-white mr-2" />
                 <span className="text-xl font-bold text-white">FreshMarket</span>
               </Link>
-              
-              <div className="hidden md:ml-8 md:flex md:space-x-8">
-                <Link
-                  to="/"
-                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                    location.pathname === '/'
-                      ? 'border-white text-white'
-                      : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
-                  }`}
-                >
-                  Shop
-                </Link>
-                {isAuthenticated && (
-                  <Link
-                    to="/profile"
-                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
-                      location.pathname === '/profile'
-                        ? 'border-white text-white'
-                        : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
-                    }`}
-                  >
-                    My Account
-                  </Link>
-                )}
-              </div>
             </div>
 
             {/* Right side - Cart and auth */}
@@ -72,7 +48,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/10 relative pr-4"
+                className="text-white hover:bg-white/10 relative pr-4 cursor-pointer"
                 onClick={onCartDrawerOpen || (() => {})}
               >
                 <ShoppingCart className="h-5 w-5" />
@@ -90,6 +66,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               {/* Authentication Section */}
               {isAuthenticated ? (
                 <UserProfile
+                  onMyAccount={() => navigate('/profile')}
                   onOrderHistory={() => {}} // Handled by navigation
                   onAddresses={() => {}} // Future feature
                   onSettings={() => {}} // Future feature

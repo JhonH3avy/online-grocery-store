@@ -59,7 +59,7 @@ export function CartDrawer({
           <SheetTitle>Carrito de Compras</SheetTitle>
         </SheetHeader>
 
-        <div className="py-4">
+        <div className="py-4 px-4">
           <div className="flex items-center justify-between mb-4">
             <span>Unidad de peso:</span>
             <Select value={weightUnit} onValueChange={(value: 'kg' | 'lb') => onWeightUnitChange(value)}>
