@@ -483,16 +483,23 @@ router.delete('/clear', optionalAuth, async (req: AuthenticatedRequest, res) => 
 // POST /api/cart/checkout - Convert cart to order and checkout
 router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
-    const { shippingAddress, paymentMethod, notes } = req.body;
+    const { deliveryAddressId, shippingAddress, paymentMethod, notes } = req.body;
     
     // User is guaranteed to exist because of authenticateToken middleware
     const userId = req.user!.id;
 
-    // Validate required fields
-    if (!shippingAddress || !paymentMethod) {
+    // Validate required fields - need either deliveryAddressId OR shippingAddress
+    if (!deliveryAddressId && !shippingAddress) {
       return res.status(400).json({
         success: false,
-        message: 'Shipping address and payment method are required'
+        message: 'Either deliveryAddressId or shippingAddress is required'
+      });
+    }
+
+    if (!paymentMethod) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment method is required'
       });
     }
 
@@ -527,36 +534,56 @@ router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, re
     }
 
     // Create or find shipping address
-    let deliveryAddressId: string;
+    let finalDeliveryAddressId: string;
     
-    if (userId !== 'anonymous-user') {
-      // For authenticated users, create a new address record
-      const address = await prisma.address.create({
-        data: {
-          userId,
-          street: shippingAddress.street,
-          city: shippingAddress.city,
-          state: shippingAddress.state,
-          zipCode: shippingAddress.zipCode,
-          country: shippingAddress.country || 'Colombia',
-          isDefault: false
+    if (deliveryAddressId) {
+      // Use existing address - verify it belongs to the user
+      const existingAddress = await prisma.address.findFirst({
+        where: {
+          id: deliveryAddressId,
+          userId
         }
       });
-      deliveryAddressId = address.id;
+      
+      if (!existingAddress) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid delivery address ID or address does not belong to user'
+        });
+      }
+      
+      finalDeliveryAddressId = deliveryAddressId;
     } else {
-      // For anonymous users, create a temporary address (you might want to handle this differently)
-      const address = await prisma.address.create({
-        data: {
-          userId: 'anonymous-user',
-          street: shippingAddress.street,
-          city: shippingAddress.city,
-          state: shippingAddress.state,
-          zipCode: shippingAddress.zipCode,
-          country: shippingAddress.country || 'Colombia',
-          isDefault: false
-        }
-      });
-      deliveryAddressId = address.id;
+      // Create new address from shippingAddress data
+      if (userId !== 'anonymous-user') {
+        // For authenticated users, create a new address record
+        const address = await prisma.address.create({
+          data: {
+            userId,
+            street: shippingAddress.street,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            zipCode: shippingAddress.zipCode,
+            country: shippingAddress.country || 'Colombia',
+            isDefault: false
+          }
+        });
+        finalDeliveryAddressId = address.id;
+      } else {
+        // For anonymous users, create a temporary address (you might want to handle this differently)
+        const address = await prisma.address.create({
+          data: {
+            userId: 'anonymous-user',
+            street: shippingAddress.street,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            zipCode: shippingAddress.zipCode,
+            country: shippingAddress.country || 'Colombia',
+            isDefault: false
+          }
+        });
+        finalDeliveryAddressId = address.id;
+      }
     }
 
     // Calculate order totals
@@ -571,7 +598,7 @@ router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, re
     const order = await prisma.order.create({
       data: {
         userId,
-        deliveryAddressId,
+        deliveryAddressId: finalDeliveryAddressId,
         paymentMethod: paymentMethod.type || paymentMethod,
         subtotal: Math.round(subtotal * 100) / 100,
         deliveryFee: Math.round(deliveryFee * 100) / 100,

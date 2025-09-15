@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { RadioGroup, RadioGroupItem } from './ui/radio-group'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Separator } from './ui/separator'
 import { Badge } from './ui/badge'
@@ -12,6 +13,8 @@ import { toast } from 'sonner'
 import { Product } from './ProductCard'
 import { ImageWithFallback } from './figma/ImageWithFallback'
 import { cartService } from '../services/cartService'
+import { useAuth } from '../hooks/useAuth'
+import { apiClient } from '../services/api'
 
 interface Address {
   id: string
@@ -41,6 +44,7 @@ export function CheckoutModal({
   weightUnit,
   onCheckoutSuccess
 }: CheckoutModalProps) {
+  const { token, isAuthenticated } = useAuth()
   const [step, setStep] = useState<'review' | 'address' | 'payment' | 'processing'>('review')
   const [addresses, setAddresses] = useState<Address[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>('')
@@ -69,13 +73,22 @@ export function CheckoutModal({
   })
 
   const [notes, setNotes] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [addressToDelete, setAddressToDelete] = useState<string | null>(null)
 
   // Load user addresses when modal opens
   useEffect(() => {
-    if (open && step === 'address') {
+    if (open && step === 'address' && token) {
       loadAddresses()
     }
-  }, [open, step])
+  }, [open, step, token])
+
+  // Load addresses immediately when modal opens if user is authenticated
+  useEffect(() => {
+    if (open && token && isAuthenticated) {
+      loadAddresses()
+    }
+  }, [open, token, isAuthenticated])
 
   // Reset form when modal closes
   useEffect(() => {
@@ -84,6 +97,7 @@ export function CheckoutModal({
       setShowAddressForm(false)
       setEditingAddress(null)
       setSelectedAddressId('')
+      setAddresses([]) // Clear addresses to prevent stale data
       setNewAddress({
         street: '',
         city: '',
@@ -104,24 +118,44 @@ export function CheckoutModal({
   }, [open])
 
   const loadAddresses = async () => {
+    if (!token) {
+      console.log('No auth token available')
+      return
+    }
+    
+    console.log('Loading addresses with token:', token.substring(0, 20) + '...')
     setLoadingAddresses(true)
     try {
       const response = await fetch('/api/users/addresses', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         }
       })
       
+      console.log('Addresses response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
-        setAddresses(data.addresses || [])
+        console.log('Addresses data received:', data)
+        
+        // Deduplicate addresses by ID to prevent duplicates
+        const uniqueAddresses = Array.isArray(data.data) 
+          ? data.data.filter((address: Address, index: number, arr: Address[]) => 
+              arr.findIndex(a => a.id === address.id) === index
+            )
+          : [];
+        
+        console.log('Unique addresses after deduplication:', uniqueAddresses)
+        setAddresses(uniqueAddresses)
         
         // Select default address if available
-        const defaultAddress = data.addresses?.find((addr: Address) => addr.isDefault)
-        if (defaultAddress) {
+        const defaultAddress = uniqueAddresses.find((addr: Address) => addr.isDefault)
+        if (defaultAddress && !selectedAddressId) {
           setSelectedAddressId(defaultAddress.id)
         }
       } else {
+        const errorText = await response.text()
+        console.error('Failed to load addresses:', response.status, errorText)
         throw new Error('Failed to load addresses')
       }
     } catch (error) {
@@ -133,6 +167,11 @@ export function CheckoutModal({
   }
 
   const handleSaveAddress = async () => {
+    if (!token) {
+      toast.error('You must be logged in to add addresses')
+      return
+    }
+    
     if (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
       toast.error('Please fill in all required fields')
       return
@@ -150,7 +189,7 @@ export function CheckoutModal({
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(newAddress)
       })
@@ -191,36 +230,40 @@ export function CheckoutModal({
   }
 
   const handleDeleteAddress = async (addressId: string) => {
-    if (!confirm('Are you sure you want to delete this address?')) {
+    setAddressToDelete(addressId)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteAddress = async () => {
+    if (!addressToDelete) return
+
+    if (!token) {
+      toast.error('You must be logged in to delete addresses')
       return
     }
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/users/addresses/${addressId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
-      })
-
-      if (response.ok) {
+      const response = await apiClient.delete(`/users/addresses/${addressToDelete}`)
+      
+      if (response.success) {
         toast.success('Address deleted successfully')
         await loadAddresses()
         
         // Clear selection if deleted address was selected
-        if (selectedAddressId === addressId) {
+        if (selectedAddressId === addressToDelete) {
           setSelectedAddressId('')
         }
       } else {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete address')
+        throw new Error(response.error || 'Failed to delete address')
       }
     } catch (error) {
       console.error('Error deleting address:', error)
       toast.error('Failed to delete address')
     } finally {
       setLoading(false)
+      setShowDeleteConfirm(false)
+      setAddressToDelete(null)
     }
   }
 
@@ -254,13 +297,7 @@ export function CheckoutModal({
       }
 
       const checkoutData = {
-        shippingAddress: {
-          street: selectedAddress.street,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          zipCode: selectedAddress.zipCode,
-          country: selectedAddress.country
-        },
+        deliveryAddressId: selectedAddress.id,
         paymentMethod: paymentMethod,
         notes: notes.trim() || undefined
       }
@@ -499,71 +536,84 @@ export function CheckoutModal({
                 <p>Loading addresses...</p>
               </div>
             ) : addresses.length > 0 ? (
-              <div className="space-y-3">
+              <RadioGroup
+                value={selectedAddressId}
+                onValueChange={setSelectedAddressId}
+                className="space-y-3"
+              >
                 {addresses.map((address) => (
-                  <Card
-                    key={address.id}
-                    className={`cursor-pointer transition-colors ${
-                      selectedAddressId === address.id
-                        ? 'ring-2 ring-green-500 bg-green-50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                    onClick={() => setSelectedAddressId(address.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className={`w-4 h-4 rounded-full border-2 mt-1 ${
-                            selectedAddressId === address.id
-                              ? 'bg-green-500 border-green-500'
-                              : 'border-gray-300'
-                          }`}>
-                            {selectedAddressId === address.id && (
-                              <Check className="w-2 h-2 text-white m-0.5" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-gray-500" />
-                              <span className="font-medium">{address.street}</span>
-                              {address.isDefault && (
-                                <Badge variant="secondary" className="text-xs">Default</Badge>
-                              )}
+                  <div key={address.id} className="relative">
+                    <RadioGroupItem
+                      value={address.id}
+                      id={address.id}
+                      className="sr-only"
+                    />
+                    <Label
+                      htmlFor={address.id}
+                      className="block cursor-pointer"
+                    >
+                      <Card
+                        className={`transition-colors border-2 ${
+                          selectedAddressId === address.id
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-gray-500" />
+                                <span className="font-medium">{address.street}</span>
+                                {address.isDefault && (
+                                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                                )}
+                                {selectedAddressId === address.id && (
+                                  <Badge className="text-xs bg-green-600 text-white">Selected</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {address.city}, {address.state} {address.zipCode}
+                              </p>
+                              <p className="text-sm text-gray-600">{address.country}</p>
                             </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              {address.city}, {address.state} {address.zipCode}
-                            </p>
-                            <p className="text-sm text-gray-600">{address.country}</p>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleEditAddress(address)
+                                }}
+                                className="cursor-pointer"
+                                disabled={loading}
+                                type="button"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  handleDeleteAddress(address.id)
+                                }}
+                                className="text-red-500 hover:text-red-700 cursor-pointer"
+                                disabled={loading}
+                                type="button"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation()
-                              handleEditAddress(address)
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e: React.MouseEvent) => {
-                              e.stopPropagation()
-                              handleDeleteAddress(address.id)
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                      </Card>
+                    </Label>
+                  </div>
                 ))}
-              </div>
+              </RadioGroup>
             ) : (
               <div className="text-center py-8">
                 <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -693,6 +743,36 @@ export function CheckoutModal({
           </div>
         )}
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Address</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Are you sure you want to delete this address? This action cannot be undone.</p>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowDeleteConfirm(false)
+                setAddressToDelete(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDeleteAddress}
+              disabled={loading}
+            >
+              {loading ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   )
 }

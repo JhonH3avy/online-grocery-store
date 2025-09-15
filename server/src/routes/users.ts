@@ -122,7 +122,10 @@ router.get('/addresses', authenticateToken, async (req: AuthenticatedRequest, re
     const userId = req.user!.id;
 
     const addresses = await prisma.address.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        isDeleted: false // Only show non-deleted addresses
+      },
       orderBy: [
         { isDefault: 'desc' },
         { createdAt: 'desc' }
@@ -156,6 +159,25 @@ router.post('/addresses', authenticateToken, async (req: AuthenticatedRequest, r
       });
     }
 
+    // Check for duplicate address
+    const existingAddress = await prisma.address.findFirst({
+      where: {
+        userId,
+        street: street.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        zipCode: zipCode.trim(),
+        country: (country || 'Colombia').trim()
+      }
+    });
+
+    if (existingAddress) {
+      return res.status(409).json({
+        success: false,
+        error: 'An address with these details already exists',
+      });
+    }
+
     // If this address is being set as default, unset other default addresses
     if (isDefault) {
       await prisma.address.updateMany({
@@ -167,11 +189,11 @@ router.post('/addresses', authenticateToken, async (req: AuthenticatedRequest, r
     const address = await prisma.address.create({
       data: {
         userId,
-        street,
-        city,
-        state,
-        zipCode,
-        country: country || 'Colombia',
+        street: street.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        zipCode: zipCode.trim(),
+        country: (country || 'Colombia').trim(),
         isDefault: isDefault || false
       }
     });
@@ -199,7 +221,11 @@ router.put('/addresses/:id', authenticateToken, async (req: AuthenticatedRequest
 
     // Check if address belongs to user
     const existingAddress = await prisma.address.findFirst({
-      where: { id: addressId, userId }
+      where: { 
+        id: addressId, 
+        userId,
+        isDeleted: false
+      }
     });
 
     if (!existingAddress) {
@@ -243,15 +269,19 @@ router.put('/addresses/:id', authenticateToken, async (req: AuthenticatedRequest
   }
 });
 
-// DELETE /api/users/addresses/:id - Delete address
+// DELETE /api/users/addresses/:id - Soft delete address
 router.delete('/addresses/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const addressId = req.params.id as string;
 
-    // Check if address belongs to user
+    // Check if address belongs to user and is not already deleted
     const existingAddress = await prisma.address.findFirst({
-      where: { id: addressId, userId }
+      where: { 
+        id: addressId, 
+        userId,
+        isDeleted: false
+      }
     });
 
     if (!existingAddress) {
@@ -261,16 +291,22 @@ router.delete('/addresses/:id', authenticateToken, async (req: AuthenticatedRequ
       });
     }
 
-    await prisma.address.delete({
-      where: { id: addressId }
+    // Soft delete the address
+    await prisma.address.update({
+      where: { id: addressId },
+      data: { 
+        isDeleted: true,
+        isDefault: false // Remove default status when deleting
+      }
     });
 
     return res.json({
       success: true,
       message: 'Address deleted successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete address error:', error);
+    
     return res.status(500).json({
       success: false,
       error: 'Internal server error',

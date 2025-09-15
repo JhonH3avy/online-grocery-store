@@ -39,14 +39,15 @@ enum UserRole {
 
 // Address model for delivery addresses
 model Address {
-  id        String  @id @default(uuid())
-  userId    String  @map("user_id")
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
   street    String
   city      String
   state     String
-  zipCode   String  @map("zip_code")
-  country   String  @default("Colombia")
-  isDefault Boolean @default(false) @map("is_default")
+  zipCode   String   @map("zip_code")
+  country   String   @default("Colombia")
+  isDefault Boolean  @default(false) @map("is_default")
+  isDeleted Boolean  @default(false) @map("is_deleted")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
