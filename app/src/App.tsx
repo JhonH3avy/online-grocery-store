@@ -20,6 +20,7 @@ import { cartService } from './services/cartService'
 export default function App() {
   const [cartItems, setCartItems] = useState<Record<string, number>>({})
   const [cart, setCart] = useState<any>(null)
+  const [cartProducts, setCartProducts] = useState<Product[]>([]) // Products in cart from all categories
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg')
   const [activeCategory, setActiveCategory] = useState('')
   const [activeSubcategory, setActiveSubcategory] = useState('')
@@ -146,10 +147,15 @@ export default function App() {
         setCart(response.data)
         // Update cart items from API response
         const newCartItems: Record<string, number> = {}
+        const newCartProducts: Product[] = []
         response.data.items?.forEach((item: any) => {
           newCartItems[item.productId] = item.quantity
+          if (item.product) {
+            newCartProducts.push(item.product)
+          }
         })
         setCartItems(newCartItems)
+        setCartProducts(newCartProducts)
       }
     } catch (error) {
       console.error('Error loading cart:', error)
@@ -180,10 +186,15 @@ export default function App() {
         setCart(response.data)
         // Update cart items from API response
         const newCartItems: Record<string, number> = {}
+        const newCartProducts: Product[] = []
         response.data.items?.forEach((item: any) => {
           newCartItems[item.productId] = item.quantity
+          if (item.product) {
+            newCartProducts.push(item.product)
+          }
         })
         setCartItems(newCartItems)
+        setCartProducts(newCartProducts)
         toast.success(`${product.name} agregado al carrito`)
       } else {
         throw new Error('Failed to add to cart')
@@ -220,10 +231,15 @@ export default function App() {
           setCart(response.data)
           // Update cart items from API response
           const newCartItems: Record<string, number> = {}
+          const newCartProducts: Product[] = []
           response.data.items?.forEach((item: any) => {
             newCartItems[item.productId] = item.quantity
+            if (item.product) {
+              newCartProducts.push(item.product)
+            }
           })
           setCartItems(newCartItems)
+          setCartProducts(newCartProducts)
         }
       }
     } catch (error) {
@@ -256,12 +272,17 @@ export default function App() {
           setCart(response.data)
           // Update cart items from API response
           const newCartItems: Record<string, number> = {}
+          const newCartProducts: Product[] = []
           response.data.items?.forEach((item: any) => {
             newCartItems[item.productId] = item.quantity
+            if (item.product) {
+              newCartProducts.push(item.product)
+            }
           })
           setCartItems(newCartItems)
+          setCartProducts(newCartProducts)
           
-          const product = products.find(p => p.id === productId)
+          const product = cartProducts.find(p => p.id === productId)
           if (product) {
             toast.success(`${product.name} eliminado del carrito`)
           }
@@ -289,6 +310,7 @@ export default function App() {
       const response = await cartService.clearCart()
       if (response.success) {
         setCartItems({})
+        setCartProducts([])
         setCart(null)
       }
     } catch (error) {
@@ -435,7 +457,7 @@ export default function App() {
             
             <CartDrawer
               cartItems={cartItems}
-              products={products}
+              products={cartProducts}
               weightUnit={weightUnit}
               onWeightUnitChange={setWeightUnit}
               onQuantityChange={handleQuantityChange}
