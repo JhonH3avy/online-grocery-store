@@ -13,6 +13,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/profile" element={<UserPage />} />
+            <Route path="/profile/orders" element={<UserPage />} />
           </Routes>
           <Toaster position="top-center" />
         </div>

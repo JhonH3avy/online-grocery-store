@@ -67,7 +67,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               {isAuthenticated ? (
                 <UserProfile
                   onMyAccount={() => navigate('/profile')}
-                  onOrderHistory={() => {}} // Handled by navigation
+                  onOrderHistory={() => navigate('/profile/orders')}
                   onAddresses={() => {}} // Future feature
                   onSettings={() => {}} // Future feature
                 />

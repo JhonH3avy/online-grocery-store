@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -61,6 +62,8 @@ interface UserProfile {
 
 export const UserPage: React.FC = () => {
   const { user, isLoading, refreshUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileData, setProfileData] = useState<UserProfile>({
     firstName: user?.firstName || '',
@@ -79,6 +82,22 @@ export const UserPage: React.FC = () => {
     hasMore: boolean;
   } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
+
+  // Determine active tab based on URL
+  const getActiveTab = () => {
+    if (location.pathname === '/profile/orders') {
+      return 'orders';
+    }
+    return 'profile';
+  };
+
+  const handleTabChange = (value: string) => {
+    if (value === 'orders') {
+      navigate('/profile/orders');
+    } else {
+      navigate('/profile');
+    }
+  };
 
   // Update profile data when user changes
   useEffect(() => {
@@ -229,7 +248,7 @@ export const UserPage: React.FC = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs value={getActiveTab()} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
