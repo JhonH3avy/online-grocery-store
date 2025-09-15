@@ -1,0 +1,116 @@
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { Button } from './ui/button';
+import { UserProfile, AuthModal } from './auth';
+import { ShoppingCart, Leaf, UserIcon } from 'lucide-react';
+import { CartDrawer } from './CartDrawer';
+
+export const Navigation: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [showCartDrawer, setShowCartDrawer] = useState(false);
+
+  return (
+    <>
+      <nav className="bg-green-600 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            {/* Logo and main navigation */}
+            <div className="flex items-center">
+              <Link to="/" className="flex items-center">
+                <Leaf className="h-8 w-8 text-white mr-2" />
+                <span className="text-xl font-bold text-white">FreshMarket</span>
+              </Link>
+              
+              <div className="hidden md:ml-8 md:flex md:space-x-8">
+                <Link
+                  to="/"
+                  className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                    location.pathname === '/'
+                      ? 'border-white text-white'
+                      : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
+                  }`}
+                >
+                  Shop
+                </Link>
+                {isAuthenticated && (
+                  <Link
+                    to="/profile"
+                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                      location.pathname === '/profile'
+                        ? 'border-white text-white'
+                        : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
+                    }`}
+                  >
+                    My Account
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Right side - Cart and auth */}
+            <div className="flex items-center gap-4">
+              {/* Cart button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/10 relative"
+                onClick={() => setShowCartDrawer(true)}
+              >
+                <ShoppingCart className="h-5 w-5" />
+                <span className="ml-2 hidden sm:inline">Cart</span>
+              </Button>
+
+              {/* Authentication Section */}
+              {isAuthenticated ? (
+                <UserProfile
+                  onOrderHistory={() => {}} // Handled by navigation
+                  onAddresses={() => {}} // Future feature
+                  onSettings={() => {}} // Future feature
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/10"
+                    onClick={() => {
+                      setAuthModalMode('login')
+                      setShowAuthModal(true)
+                    }}
+                  >
+                    <UserIcon className="h-4 w-4 mr-2" />
+                    Sign In
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-white text-green-600 hover:bg-green-50"
+                    onClick={() => {
+                      setAuthModalMode('register')
+                      setShowAuthModal(true)
+                    }}
+                  >
+                    Sign Up
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        defaultMode={authModalMode}
+        onSuccess={() => setShowAuthModal(false)}
+      />
+
+      {/* Note: CartDrawer would need to be integrated properly with cart state */}
+    </>
+  );
+};

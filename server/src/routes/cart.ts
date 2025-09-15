@@ -1,34 +1,28 @@
 import { Router } from 'express';
 import { prisma } from '../services/prisma';
+import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Simple helper to get a default user ID
-const DEFAULT_USER_ID = 'default-user';
+// Simple helper to get a default user ID for anonymous users
+const DEFAULT_USER_ID = 'anonymous-user';
 
-// Helper function to ensure user exists
-const ensureUserExists = async (): Promise<string> => {
+// Helper function to ensure user exists (for anonymous users)
+const ensureAnonymousUserExists = async (): Promise<string> => {
   try {
-    // Check if default user exists
+    // Check if default anonymous user exists
     let user = await prisma.user.findUnique({
       where: { id: DEFAULT_USER_ID }
     });
 
-    // If not, try to find the test user
-    if (!user) {
-      user = await prisma.user.findFirst({
-        where: { email: 'test@example.com' }
-      });
-    }
-
-    // If still no user, create a default one
+    // If not, create a default anonymous user
     if (!user) {
       user = await prisma.user.create({
         data: {
           id: DEFAULT_USER_ID,
-          email: 'default@example.com',
+          email: 'anonymous@example.com',
           password: 'temp',
-          firstName: 'Default',
+          firstName: 'Anonymous',
           lastName: 'User',
           phone: '+1234567890'
         }
@@ -37,15 +31,24 @@ const ensureUserExists = async (): Promise<string> => {
 
     return user.id;
   } catch (error) {
-    console.error('Error ensuring user exists:', error);
+    console.error('Error ensuring anonymous user exists:', error);
     return DEFAULT_USER_ID;
   }
 };
 
+// Helper to get user ID from request (authenticated or anonymous)
+const getUserId = async (req: AuthenticatedRequest): Promise<string> => {
+  if (req.user) {
+    return req.user.id;
+  }
+  // For anonymous users, use a default user
+  return await ensureAnonymousUserExists();
+};
+
 // GET /api/cart - Get user's cart
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = await ensureUserExists();
+    const userId = await getUserId(req);
     
     // Get all cart items for the user with product details
     const cartItems = await prisma.cartItem.findMany({
@@ -107,10 +110,10 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/cart/items - Add item to cart
-router.post('/items', async (req, res) => {
+router.post('/items', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { productId, quantity } = req.body;
-    const userId = await ensureUserExists();
+    const userId = await getUserId(req);
 
     if (!productId || !quantity || quantity <= 0) {
       return res.status(400).json({
@@ -241,11 +244,11 @@ router.post('/items', async (req, res) => {
 });
 
 // PUT /api/cart/items/:itemId - Update cart item quantity
-router.put('/items/:itemId', async (req, res) => {
+router.put('/items/:itemId', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
-    const userId = await ensureUserExists();
+    const userId = await getUserId(req);
 
     if (!quantity || quantity < 0) {
       return res.status(400).json({
@@ -257,7 +260,7 @@ router.put('/items/:itemId', async (req, res) => {
     // Check if cart item exists and belongs to user
     const cartItem = await prisma.cartItem.findFirst({
       where: { 
-        id: itemId, 
+        id: itemId as string, 
         userId 
       },
       include: {
@@ -277,7 +280,7 @@ router.put('/items/:itemId', async (req, res) => {
     if (quantity === 0) {
       // Remove item if quantity is 0
       await prisma.cartItem.delete({
-        where: { id: itemId }
+        where: { id: itemId as string }
       });
     } else {
       // Check inventory
@@ -291,7 +294,7 @@ router.put('/items/:itemId', async (req, res) => {
 
       // Update cart item
       await prisma.cartItem.update({
-        where: { id: itemId },
+        where: { id: itemId as string },
         data: { quantity }
       });
     }
@@ -356,15 +359,15 @@ router.put('/items/:itemId', async (req, res) => {
 });
 
 // DELETE /api/cart/items/:itemId - Remove item from cart
-router.delete('/items/:itemId', async (req, res) => {
+router.delete('/items/:itemId', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const { itemId } = req.params;
-    const userId = await ensureUserExists();
+    const userId = await getUserId(req);
 
     // Check if cart item exists and belongs to user
     const cartItem = await prisma.cartItem.findFirst({
       where: { 
-        id: itemId, 
+        id: itemId as string, 
         userId 
       }
     });
@@ -378,7 +381,7 @@ router.delete('/items/:itemId', async (req, res) => {
 
     // Delete the cart item
     await prisma.cartItem.delete({
-      where: { id: itemId }
+      where: { id: itemId as string }
     });
 
     // Get updated cart
@@ -441,9 +444,9 @@ router.delete('/items/:itemId', async (req, res) => {
 });
 
 // DELETE /api/cart/clear - Clear entire cart
-router.delete('/clear', async (req, res) => {
+router.delete('/clear', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const userId = await ensureUserExists();
+    const userId = await getUserId(req);
 
     // Delete all cart items for the user
     await prisma.cartItem.deleteMany({
