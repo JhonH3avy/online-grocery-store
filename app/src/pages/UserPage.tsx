@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { Navigation } from '../components/Navigation';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -29,7 +30,7 @@ interface Order {
   deliveryFee: number;
   createdAt: string;
   updatedAt: string;
-  items: OrderItem[];
+  orderItems: OrderItem[]; // Changed from 'items' to 'orderItems'
   deliveryAddress?: {
     street: string;
     city: string;
@@ -69,6 +70,14 @@ export const UserPage: React.FC = () => {
   });
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPagination, setOrdersPagination] = useState<{
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasMore: boolean;
+  } | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
 
   // Update profile data when user changes
@@ -83,16 +92,21 @@ export const UserPage: React.FC = () => {
     }
   }, [user]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (page = 1) => {
     try {
       setOrdersLoading(true);
-      const response = await apiClient.get<{ orders: Order[] }>('/orders');
+      const response = await apiClient.get<{ data: Order[]; pagination: any }>(`/orders?page=${page}&limit=10`);
       if (response.success && response.data) {
-        setOrders(response.data.orders);
+        // Handle paginated response
+        setOrders(response.data.data || []);
+        setOrdersPagination(response.data.pagination || null);
+        setOrdersPage(page);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
       toast.error('Failed to load order history');
+      setOrders([]); // Set empty array on error to prevent undefined issues
+      setOrdersPagination(null);
     } finally {
       setOrdersLoading(false);
     }
@@ -100,7 +114,7 @@ export const UserPage: React.FC = () => {
 
   // Fetch user orders
   useEffect(() => {
-    fetchOrders();
+    fetchOrders(1);
   }, [fetchOrders]);
 
   const handleProfileSave = async () => {
@@ -201,8 +215,12 @@ export const UserPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <Navigation />
+      
+      <div className="py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
@@ -361,7 +379,7 @@ export const UserPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <PackageIcon className="h-4 w-4" />
-                                  {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                                  {order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0} item{(order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0) !== 1 ? 's' : ''}
                                 </div>
                               </div>
                             </div>
@@ -372,26 +390,30 @@ export const UserPage: React.FC = () => {
                           {/* Order Items */}
                           <div className="space-y-3">
                             <h4 className="font-medium">Items Ordered:</h4>
-                            {order.items.map((item) => (
-                              <div key={item.id} className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  {item.product.imageUrl && (
-                                    <img 
-                                      src={item.product.imageUrl} 
-                                      alt={item.product.name}
-                                      className="h-10 w-10 rounded object-cover"
-                                    />
-                                  )}
-                                  <div>
-                                    <p className="font-medium">{item.product.name}</p>
-                                    <p className="text-sm text-gray-500">
-                                      {item.quantity} × ${item.unitPrice.toFixed(2)} {item.product.unit}
-                                    </p>
+                            {order.orderItems && Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
+                              order.orderItems.map((item: OrderItem) => (
+                                <div key={item.id} className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    {item.product?.imageUrl && (
+                                      <img 
+                                        src={item.product.imageUrl} 
+                                        alt={item.product.name}
+                                        className="h-10 w-10 rounded object-cover"
+                                      />
+                                    )}
+                                    <div>
+                                      <p className="font-medium">{item.product?.name || 'Unknown Product'}</p>
+                                      <p className="text-sm text-gray-500">
+                                        {item.quantity} × ${item.unitPrice?.toFixed(2) || '0.00'} {item.product?.unit || ''}
+                                      </p>
+                                    </div>
                                   </div>
+                                  <p className="font-medium">${item.total?.toFixed(2) || '0.00'}</p>
                                 </div>
-                                <p className="font-medium">${item.total.toFixed(2)}</p>
-                              </div>
-                            ))}
+                              ))
+                            ) : (
+                              <p className="text-sm text-gray-500">No items found in this order.</p>
+                            )}
                           </div>
 
                           <Separator className="my-4" />
@@ -431,11 +453,44 @@ export const UserPage: React.FC = () => {
                     ))}
                   </div>
                 )}
+
+                {/* Pagination Controls */}
+                {ordersPagination && ordersPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                    <div className="text-sm text-gray-500">
+                      Showing {((ordersPagination.page - 1) * ordersPagination.limit) + 1} to{' '}
+                      {Math.min(ordersPagination.page * ordersPagination.limit, ordersPagination.total)} of{' '}
+                      {ordersPagination.total} orders
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchOrders(ordersPagination.page - 1)}
+                        disabled={ordersPagination.page <= 1 || ordersLoading}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm">
+                        Page {ordersPagination.page} of {ordersPagination.totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fetchOrders(ordersPagination.page + 1)}
+                        disabled={!ordersPagination.hasMore || ordersLoading}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+    </div>
     </div>
   );
 };

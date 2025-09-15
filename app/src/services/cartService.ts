@@ -37,7 +37,8 @@ export interface UpdateCartItemRequest {
 }
 
 export interface CheckoutRequest {
-  shippingAddress: {
+  deliveryAddressId?: string;
+  shippingAddress?: {
     street: string;
     city: string;
     state: string;
@@ -50,7 +51,10 @@ export interface CheckoutRequest {
     expiryMonth?: number;
     expiryYear?: number;
     cvv?: string;
+    cardholderName?: string;
+    expiryDate?: string;
   };
+  notes?: string;
   userId?: string;
 }
 
@@ -280,15 +284,11 @@ export const cartService = {
     try {
       // Get the current server cart
       const response = await cartService.getCart();
-      if (response.success && response.data && response.data.items.length > 0) {
+      if (response.success && response.data && response.data.items && response.data.items.length > 0) {
         // Convert server cart items to local format and save to localStorage
         const localItems: LocalCartItem[] = response.data.items.map(item => ({
-          id: item.id,
           productId: item.productId,
-          quantity: item.quantity,
-          price: item.product.price,
-          name: item.product.name,
-          imageUrl: item.product.imageUrl || ''
+          quantity: item.quantity
         }));
 
         // Save to localStorage (this will be used after logout)

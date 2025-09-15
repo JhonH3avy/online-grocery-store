@@ -117,19 +117,165 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 // GET /api/users/addresses - Get user addresses
-router.get('/addresses', (req, res) => {
-  res.status(501).json({
-    success: false,
-    error: 'Get addresses endpoint not implemented yet',
-  });
+router.get('/addresses', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const addresses = await prisma.address.findMany({
+      where: { userId },
+      orderBy: [
+        { isDefault: 'desc' },
+        { createdAt: 'desc' }
+      ]
+    });
+
+    return res.json({
+      success: true,
+      data: addresses,
+    });
+  } catch (error) {
+    console.error('Get addresses error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
 });
 
 // POST /api/users/addresses - Add new address
-router.post('/addresses', (req, res) => {
-  res.status(501).json({
-    success: false,
-    error: 'Add address endpoint not implemented yet',
-  });
+router.post('/addresses', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { street, city, state, zipCode, country, isDefault } = req.body;
+
+    // Validate required fields
+    if (!street || !city || !state || !zipCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Street, city, state, and zip code are required',
+      });
+    }
+
+    // If this address is being set as default, unset other default addresses
+    if (isDefault) {
+      await prisma.address.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false }
+      });
+    }
+
+    const address = await prisma.address.create({
+      data: {
+        userId,
+        street,
+        city,
+        state,
+        zipCode,
+        country: country || 'Colombia',
+        isDefault: isDefault || false
+      }
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: address,
+      message: 'Address added successfully',
+    });
+  } catch (error) {
+    console.error('Add address error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
+// PUT /api/users/addresses/:id - Update address
+router.put('/addresses/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const addressId = req.params.id as string;
+    const { street, city, state, zipCode, country, isDefault } = req.body;
+
+    // Check if address belongs to user
+    const existingAddress = await prisma.address.findFirst({
+      where: { id: addressId, userId }
+    });
+
+    if (!existingAddress) {
+      return res.status(404).json({
+        success: false,
+        error: 'Address not found',
+      });
+    }
+
+    // If this address is being set as default, unset other default addresses
+    if (isDefault && !existingAddress.isDefault) {
+      await prisma.address.updateMany({
+        where: { userId, isDefault: true },
+        data: { isDefault: false }
+      });
+    }
+
+    const updatedAddress = await prisma.address.update({
+      where: { id: addressId },
+      data: {
+        street: street || existingAddress.street,
+        city: city || existingAddress.city,
+        state: state || existingAddress.state,
+        zipCode: zipCode || existingAddress.zipCode,
+        country: country || existingAddress.country,
+        isDefault: isDefault !== undefined ? isDefault : existingAddress.isDefault
+      }
+    });
+
+    return res.json({
+      success: true,
+      data: updatedAddress,
+      message: 'Address updated successfully',
+    });
+  } catch (error) {
+    console.error('Update address error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
+});
+
+// DELETE /api/users/addresses/:id - Delete address
+router.delete('/addresses/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const addressId = req.params.id as string;
+
+    // Check if address belongs to user
+    const existingAddress = await prisma.address.findFirst({
+      where: { id: addressId, userId }
+    });
+
+    if (!existingAddress) {
+      return res.status(404).json({
+        success: false,
+        error: 'Address not found',
+      });
+    }
+
+    await prisma.address.delete({
+      where: { id: addressId }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Address deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete address error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+    });
+  }
 });
 
 export default router;

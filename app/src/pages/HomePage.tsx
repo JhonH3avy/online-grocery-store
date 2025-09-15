@@ -19,6 +19,7 @@ import { categoryService } from '../services/categoryService'
 import { cartService } from '../services/cartService'
 import { Navigation } from '../components/Navigation'
 import { AuthModal } from '../components/auth'
+import { CheckoutModal } from '../components/CheckoutModal'
 
 // HomePage component
 export function HomePage() {
@@ -31,6 +32,7 @@ export function HomePage() {
   const [activeSubcategory, setActiveSubcategory] = useState('')
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [hasInitializedCart, setHasInitializedCart] = useState(false)
   const [lastAuthState, setLastAuthState] = useState<boolean | null>(null)
@@ -159,12 +161,19 @@ export function HomePage() {
         // Update cart items from API response
         const newCartItems: Record<string, number> = {}
         const newCartProducts: Product[] = []
-        response.data.items?.forEach((item: any) => {
-          newCartItems[item.productId] = item.quantity
-          if (item.product) {
-            newCartProducts.push(item.product)
-          }
-        })
+        
+        // Add null/undefined checks for items array
+        if (response.data.items && Array.isArray(response.data.items)) {
+          response.data.items.forEach((item: any) => {
+            if (item && item.productId) {
+              newCartItems[item.productId] = item.quantity || 0
+              if (item.product) {
+                newCartProducts.push(item.product)
+              }
+            }
+          })
+        }
+        
         setCartItems(newCartItems)
         setCartProducts(newCartProducts)
       } else if (!isAuthenticated) {
@@ -172,16 +181,20 @@ export function HomePage() {
         const localCartItems = cartService.getLocalCartItems()
         const newCartItems: Record<string, number> = {}
         
-        localCartItems.forEach(item => {
-          newCartItems[item.productId] = item.quantity
-        })
+        if (Array.isArray(localCartItems)) {
+          localCartItems.forEach(item => {
+            if (item && item.productId) {
+              newCartItems[item.productId] = item.quantity || 0
+            }
+          })
+        }
         
         setCartItems(newCartItems)
         
         // Fetch product details for items in cart
-        if (localCartItems.length > 0) {
+        if (localCartItems && localCartItems.length > 0) {
           try {
-            const productIds = localCartItems.map(item => item.productId)
+            const productIds = localCartItems.map(item => item.productId).filter(Boolean)
             // We need to fetch products by IDs - this would require a new API endpoint
             // For now, we'll keep the existing products in the cart
             setCartProducts(cartProducts.filter(product => productIds.includes(product.id)))
@@ -195,6 +208,9 @@ export function HomePage() {
     } catch (error) {
       console.error('Error loading cart:', error)
       // Cart errors are non-critical, just log them
+      // Set empty cart state to prevent undefined errors
+      setCartItems({})
+      setCartProducts([])
     }
   }
 
@@ -386,48 +402,22 @@ export function HomePage() {
       return;
     }
 
-    try {
-      // For now, use dummy shipping and payment data
-      // In a real app, this would open a checkout form to collect this information
-      const checkoutData = {
-        shippingAddress: {
-          street: '123 Main St',
-          city: 'Bogotá',
-          state: 'Bogotá D.C.',
-          zipCode: '110111',
-          country: 'Colombia'
-        },
-        paymentMethod: {
-          type: 'credit_card' as const
-        },
-        notes: 'Order placed by authenticated user'
-      };
+  // Open checkout modal
+  setShowCheckoutModal(true);
+  setCartDrawerOpen(false);
+}
 
-      const response = await cartService.checkout(checkoutData);
-      
-      if (response.success) {
-        toast.success(`Order placed successfully! Order ID: ${response.data?.orderId}`);
-        
-        // Clear local cart state
-        setCartItems({});
-        setCartProducts([]);
-        setCart(null);
-        
-        // Reload cart from server to confirm it's empty
-        await loadCart();
-        
-        // Close cart drawer if open
-        setCartDrawerOpen(false);
-      } else {
-        throw new Error(response.error || 'Checkout failed');
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      toast.error('Failed to complete checkout. Please try again.');
-    }
-  }
+const handleCheckoutSuccess = async () => {
+  // Clear local cart state
+  setCartItems({});
+  setCartProducts([]);
+  setCart(null);
+  
+  // Reload cart from server to confirm it's empty
+  await loadCart();
+}
 
-  const retryConnection = async () => {
+const retryConnection = async () => {
     toast.info('Reconnecting to server...')
     setServerStatus('checking')
     
@@ -493,6 +483,13 @@ export function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-orange-50 to-white">
+      
+      {/* Navigation */}
+      <Navigation 
+        cartItems={cartItems}
+        products={cartProducts}
+        onCartDrawerOpen={() => setCartDrawerOpen(true)}
+      />
       
       {/* Server Status Alert */}
       {serverStatus === 'online' && (
@@ -743,6 +740,16 @@ export function HomePage() {
           setShowAuthModal(false);
           toast.success('Successfully signed in! You can now proceed with checkout.');
         }}
+      />
+
+      {/* Checkout Modal */}
+      <CheckoutModal
+        open={showCheckoutModal}
+        onOpenChange={setShowCheckoutModal}
+        cartItems={cartItems}
+        cartProducts={cartProducts}
+        weightUnit={weightUnit}
+        onCheckoutSuccess={handleCheckoutSuccess}
       />
     </div>
   )

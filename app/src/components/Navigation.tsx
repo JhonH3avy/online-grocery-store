@@ -21,8 +21,12 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
 
-  // Calculate total items in cart
-  const totalCartItems = Object.values(cartItems).reduce((sum: number, quantity: unknown) => sum + (quantity as number), 0);
+  // Calculate total items in cart with proper null checking
+  const totalCartItems = cartItems && typeof cartItems === 'object' 
+    ? Object.values(cartItems).reduce((sum: number, quantity: unknown) => {
+        return sum + (typeof quantity === 'number' ? quantity : 0);
+      }, 0)
+    : 0;
 
   return (
     <>
@@ -68,13 +72,16 @@ export const Navigation: React.FC<NavigationProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/10 relative"
+                className="text-white hover:bg-white/10 relative pr-4"
                 onClick={onCartDrawerOpen || (() => {})}
               >
                 <ShoppingCart className="h-5 w-5" />
                 <span className="ml-2 hidden sm:inline">Cart</span>
                 {totalCartItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                  <span 
+                    className="absolute -top-2 -right-2 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center font-semibold border border-white shadow-md"
+                    style={{ backgroundColor: '#dc2626' }}
+                  >
                     {totalCartItems}
                   </span>
                 )}
