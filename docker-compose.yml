@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -35,7 +33,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: grocery-app
+    container_name: grocery-server
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -56,7 +54,7 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: grocery-frontend
+    container_name: grocery-app
     restart: unless-stopped
     ports:
       - "3000:80"

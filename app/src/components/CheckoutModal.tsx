@@ -160,7 +160,7 @@ export function CheckoutModal({
       }
     } catch (error) {
       console.error('Error loading addresses:', error)
-      toast.error('Failed to load addresses')
+      toast.error('No se pudieron cargar las direcciones')
     } finally {
       setLoadingAddresses(false)
     }
@@ -168,12 +168,12 @@ export function CheckoutModal({
 
   const handleSaveAddress = async () => {
     if (!token) {
-      toast.error('You must be logged in to add addresses')
+      toast.error('Debe iniciar sesión para agregar direcciones')
       return
     }
     
     if (!newAddress.street || !newAddress.city || !newAddress.state || !newAddress.zipCode) {
-      toast.error('Please fill in all required fields')
+      toast.error('Por favor complete todos los campos requeridos')
       return
     }
 
@@ -196,7 +196,7 @@ export function CheckoutModal({
 
       if (response.ok) {
         const data = await response.json()
-        toast.success(editingAddress ? 'Address updated successfully' : 'Address added successfully')
+        toast.success(editingAddress ? 'Dirección actualizada exitosamente' : 'Dirección agregada exitosamente')
         
         // Reload addresses
         await loadAddresses()
@@ -219,11 +219,11 @@ export function CheckoutModal({
         })
       } else {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save address')
+        throw new Error(errorData.error || 'No se pudo guardar la dirección')
       }
     } catch (error) {
       console.error('Error saving address:', error)
-      toast.error('Failed to save address')
+      toast.error('No se pudo guardar la dirección')
     } finally {
       setLoading(false)
     }
@@ -238,7 +238,7 @@ export function CheckoutModal({
     if (!addressToDelete) return
 
     if (!token) {
-      toast.error('You must be logged in to delete addresses')
+      toast.error('Debe iniciar sesión para eliminar direcciones')
       return
     }
 
@@ -247,7 +247,7 @@ export function CheckoutModal({
       const response = await apiClient.delete(`/users/addresses/${addressToDelete}`)
       
       if (response.success) {
-        toast.success('Address deleted successfully')
+        toast.success('Dirección eliminada exitosamente')
         await loadAddresses()
         
         // Clear selection if deleted address was selected
@@ -255,11 +255,11 @@ export function CheckoutModal({
           setSelectedAddressId('')
         }
       } else {
-        throw new Error(response.error || 'Failed to delete address')
+        throw new Error(response.error || 'No se pudo eliminar la dirección')
       }
     } catch (error) {
       console.error('Error deleting address:', error)
-      toast.error('Failed to delete address')
+      toast.error('No se pudo eliminar la dirección')
     } finally {
       setLoading(false)
       setShowDeleteConfirm(false)
@@ -282,7 +282,7 @@ export function CheckoutModal({
 
   const handleCheckout = async () => {
     if (!selectedAddressId) {
-      toast.error('Please select a delivery address')
+      toast.error('Por favor seleccione una dirección de entrega')
       return
     }
 
@@ -305,15 +305,15 @@ export function CheckoutModal({
       const response = await cartService.checkout(checkoutData)
       
       if (response.success) {
-        toast.success(`Order placed successfully! Order ID: ${response.data?.orderId}`)
+        toast.success(`¡Pedido realizado exitosamente! ID del Pedido: ${response.data?.orderId}`)
         onCheckoutSuccess()
         onOpenChange(false)
       } else {
-        throw new Error(response.error || 'Checkout failed')
+        throw new Error(response.error || 'Error en el pedido')
       }
     } catch (error) {
       console.error('Checkout error:', error)
-      toast.error('Failed to complete checkout. Please try again.')
+      toast.error('No se pudo completar el pedido. Por favor intente de nuevo.')
       setStep('payment')
     } finally {
       setLoading(false)
@@ -341,7 +341,7 @@ export function CheckoutModal({
     return sum + (convertedPrice(product.price) * quantity)
   }, 0)
 
-  const deliveryFee = 5000 // Fixed delivery fee
+  const deliveryFee = 5 // Fixed delivery fee
   const finalTotal = totalPrice + deliveryFee
 
   return (
@@ -350,14 +350,14 @@ export function CheckoutModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Truck className="w-5 h-5" />
-            Checkout
+            Pedido
           </DialogTitle>
         </DialogHeader>
 
         {step === 'review' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Order Review</h3>
+              <h3 className="text-lg font-semibold mb-4">Resumen del Pedido</h3>
               <div className="space-y-3 max-h-60 overflow-y-auto">
                 {itemsInCart.map(([productId, quantity]) => {
                   const product = cartProducts.find(p => p.id === productId)
@@ -395,7 +395,7 @@ export function CheckoutModal({
                 <span>${totalPrice.toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between">
-                <span>Delivery:</span>
+                <span>Domicilio:</span>
                 <span>${deliveryFee.toLocaleString('es-CO')}</span>
               </div>
               <Separator />
@@ -407,10 +407,10 @@ export function CheckoutModal({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                Cancelar
               </Button>
               <Button onClick={() => setStep('address')} className="bg-green-600 hover:bg-green-700">
-                Continue to Delivery
+                Continuar a Entrega
               </Button>
             </DialogFooter>
           </div>
@@ -419,7 +419,7 @@ export function CheckoutModal({
         {step === 'address' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Delivery Address</h3>
+              <h3 className="text-lg font-semibold">Dirección de Entrega</h3>
               <Button
                 variant="outline"
                 size="sm"
@@ -427,7 +427,7 @@ export function CheckoutModal({
                 className="flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Add Address
+                Agregar Dirección
               </Button>
             </div>
 
@@ -435,22 +435,22 @@ export function CheckoutModal({
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {editingAddress ? 'Edit Address' : 'Add New Address'}
+                    {editingAddress ? 'Editar Dirección' : 'Agregar Nueva Dirección'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <Label htmlFor="street">Street Address</Label>
+                      <Label htmlFor="street">Dirección</Label>
                       <Input
                         id="street"
                         value={newAddress.street}
                         onChange={(e) => setNewAddress(prev => ({ ...prev, street: e.target.value }))}
-                        placeholder="123 Main Street"
+                        placeholder="Calle 123 #45-67"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="city">City</Label>
+                      <Label htmlFor="city">Ciudad</Label>
                       <Input
                         id="city"
                         value={newAddress.city}
@@ -459,7 +459,7 @@ export function CheckoutModal({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="state">State/Province</Label>
+                      <Label htmlFor="state">Estado/Provincia</Label>
                       <Input
                         id="state"
                         value={newAddress.state}
@@ -468,7 +468,7 @@ export function CheckoutModal({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="zipCode">ZIP/Postal Code</Label>
+                      <Label htmlFor="zipCode">Código Postal</Label>
                       <Input
                         id="zipCode"
                         value={newAddress.zipCode}
@@ -477,7 +477,7 @@ export function CheckoutModal({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="country">Country</Label>
+                      <Label htmlFor="country">País</Label>
                       <Select
                         value={newAddress.country}
                         onValueChange={(value: string) => setNewAddress(prev => ({ ...prev, country: value }))}
@@ -502,12 +502,12 @@ export function CheckoutModal({
                       onChange={(e) => setNewAddress(prev => ({ ...prev, isDefault: e.target.checked }))}
                       className="rounded"
                     />
-                    <Label htmlFor="isDefault">Set as default address</Label>
+                    <Label htmlFor="isDefault">Establecer como dirección predeterminada</Label>
                   </div>
 
                   <div className="flex gap-2">
                     <Button onClick={handleSaveAddress} disabled={loading}>
-                      {loading ? 'Saving...' : (editingAddress ? 'Update Address' : 'Save Address')}
+                      {loading ? 'Guardando...' : (editingAddress ? 'Actualizar Dirección' : 'Guardar Dirección')}
                     </Button>
                     <Button
                       variant="outline"
@@ -524,7 +524,7 @@ export function CheckoutModal({
                         })
                       }}
                     >
-                      Cancel
+                      Cancelar
                     </Button>
                   </div>
                 </CardContent>
@@ -533,7 +533,7 @@ export function CheckoutModal({
 
             {loadingAddresses ? (
               <div className="text-center py-8">
-                <p>Loading addresses...</p>
+                <p>Cargando direcciones...</p>
               </div>
             ) : addresses.length > 0 ? (
               <RadioGroup
@@ -566,10 +566,10 @@ export function CheckoutModal({
                                 <MapPin className="w-4 h-4 text-gray-500" />
                                 <span className="font-medium">{address.street}</span>
                                 {address.isDefault && (
-                                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                                  <Badge variant="secondary" className="text-xs">Predeterminada</Badge>
                                 )}
                                 {selectedAddressId === address.id && (
-                                  <Badge className="text-xs bg-green-600 text-white">Selected</Badge>
+                                  <Badge className="text-xs bg-green-600 text-white">Seleccionada</Badge>
                                 )}
                               </div>
                               <p className="text-sm text-gray-600 mt-1">
@@ -617,20 +617,20 @@ export function CheckoutModal({
             ) : (
               <div className="text-center py-8">
                 <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600">No addresses found. Please add an address to continue.</p>
+                <p className="text-gray-600">No se encontraron direcciones. Por favor agregue una dirección para continuar.</p>
               </div>
             )}
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep('review')}>
-                Back
+                Atrás
               </Button>
               <Button
                 onClick={() => setStep('payment')}
                 disabled={!selectedAddressId}
                 className="bg-green-600 hover:bg-green-700"
               >
-                Continue to Payment
+                Continuar al Pago
               </Button>
             </DialogFooter>
           </div>
@@ -638,27 +638,27 @@ export function CheckoutModal({
 
         {step === 'payment' && (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Payment Information</h3>
+            <h3 className="text-lg font-semibold">Información de Pago</h3>
             
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <CreditCard className="w-4 h-4" />
-                  Credit Card Details
+                  Detalles de Tarjeta de Crédito
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="cardholderName">Cardholder Name</Label>
+                  <Label htmlFor="cardholderName">Nombre del Titular</Label>
                   <Input
                     id="cardholderName"
                     value={paymentMethod.cardholderName}
                     onChange={(e) => setPaymentMethod(prev => ({ ...prev, cardholderName: e.target.value }))}
-                    placeholder="John Doe"
+                    placeholder="Juan Pérez"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="cardNumber">Card Number</Label>
+                  <Label htmlFor="cardNumber">Número de Tarjeta</Label>
                   <Input
                     id="cardNumber"
                     value={paymentMethod.cardNumber}
@@ -669,12 +669,12 @@ export function CheckoutModal({
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="expiryDate">Expiry Date</Label>
+                    <Label htmlFor="expiryDate">Fecha de Vencimiento</Label>
                     <Input
                       id="expiryDate"
                       value={paymentMethod.expiryDate}
                       onChange={(e) => setPaymentMethod(prev => ({ ...prev, expiryDate: e.target.value }))}
-                      placeholder="MM/YY"
+                      placeholder="MM/AA"
                       maxLength={5}
                     />
                   </div>
@@ -693,12 +693,12 @@ export function CheckoutModal({
             </Card>
 
             <div>
-              <Label htmlFor="notes">Order Notes (Optional)</Label>
+              <Label htmlFor="notes">Notas del Pedido (Opcional)</Label>
               <Input
                 id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Special instructions for delivery..."
+                placeholder="Instrucciones especiales para la entrega..."
               />
             </div>
 
@@ -710,7 +710,7 @@ export function CheckoutModal({
                 <span>${totalPrice.toLocaleString('es-CO')}</span>
               </div>
               <div className="flex justify-between">
-                <span>Delivery:</span>
+                <span>Domicilio:</span>
                 <span>${deliveryFee.toLocaleString('es-CO')}</span>
               </div>
               <Separator />
@@ -722,14 +722,14 @@ export function CheckoutModal({
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep('address')}>
-                Back
+                Atrás
               </Button>
               <Button
                 onClick={handleCheckout}
                 disabled={!paymentMethod.cardholderName || !paymentMethod.cardNumber || !paymentMethod.expiryDate || !paymentMethod.cvv}
                 className="bg-green-600 hover:bg-green-700"
               >
-                Place Order
+                Realizar Pedido
               </Button>
             </DialogFooter>
           </div>
@@ -738,8 +738,8 @@ export function CheckoutModal({
         {step === 'processing' && (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-            <h3 className="text-lg font-semibold mb-2">Processing Your Order</h3>
-            <p className="text-gray-600">Please wait while we process your order...</p>
+            <h3 className="text-lg font-semibold mb-2">Procesando su Pedido</h3>
+            <p className="text-gray-600">Por favor espere mientras procesamos su pedido...</p>
           </div>
         )}
       </DialogContent>
@@ -748,10 +748,10 @@ export function CheckoutModal({
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Address</DialogTitle>
+            <DialogTitle>Eliminar Dirección</DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p>Are you sure you want to delete this address? This action cannot be undone.</p>
+            <p>¿Está seguro de que desea eliminar esta dirección? Esta acción no se puede deshacer.</p>
           </div>
           <DialogFooter>
             <Button 
@@ -761,14 +761,14 @@ export function CheckoutModal({
                 setAddressToDelete(null)
               }}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button 
               variant="destructive" 
               onClick={confirmDeleteAddress}
               disabled={loading}
             >
-              {loading ? 'Deleting...' : 'Delete'}
+              {loading ? 'Eliminando...' : 'Eliminar'}
             </Button>
           </DialogFooter>
         </DialogContent>

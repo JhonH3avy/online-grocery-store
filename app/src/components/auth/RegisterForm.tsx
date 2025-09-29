@@ -32,23 +32,23 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
 
     // Validation
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
-      setError('Please fill in all required fields');
+      setError('Por favor complete todos los campos requeridos');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Las contraseñas no coinciden');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email address');
+      setError('Por favor ingrese una dirección de correo válida');
       return;
     }
 
@@ -77,9 +77,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
+        <CardTitle>Crear Cuenta</CardTitle>
         <CardDescription>
-          Sign up to start shopping and track your orders
+          Regístrese para comenzar a comprar y hacer seguimiento de sus pedidos
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -92,7 +92,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+              <Label htmlFor="firstName">Nombre *</Label>
               <Input
                 id="firstName"
                 name="firstName"
@@ -105,7 +105,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+              <Label htmlFor="lastName">Apellido *</Label>
               <Input
                 id="lastName"
                 name="lastName"
@@ -120,7 +120,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+            <Label htmlFor="email">Correo Electrónico *</Label>
             <Input
               id="email"
               name="email"
@@ -134,7 +134,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number</Label>
+            <Label htmlFor="phone">Número de Teléfono</Label>
             <Input
               id="phone"
               name="phone"
@@ -147,13 +147,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
+            <Label htmlFor="password">Contraseña *</Label>
             <div className="relative">
               <Input
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Minimum 6 characters"
+                placeholder="Mínimo 6 caracteres"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -177,13 +177,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password *</Label>
+            <Label htmlFor="confirmPassword">Confirmar Contraseña *</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
-                placeholder="Confirm your password"
+                placeholder="Confirme su contraseña"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
@@ -207,20 +207,20 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchT
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Creando Cuenta...' : 'Crear Cuenta'}
           </Button>
 
           {onSwitchToLogin && (
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                Already have an account?{' '}
+                ¿Ya tiene una cuenta?{' '}
                 <Button
                   type="button"
                   variant="link"
                   className="p-0"
                   onClick={onSwitchToLogin}
                 >
-                  Sign in
+                  Iniciar sesión
                 </Button>
               </p>
             </div>

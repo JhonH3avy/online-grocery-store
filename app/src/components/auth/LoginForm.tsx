@@ -26,7 +26,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
     setError('');
 
     if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
+      setError('Por favor complete todos los campos');
       return;
     }
 
@@ -35,7 +35,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
     if (result.success) {
       onSuccess?.();
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || 'Error de inicio de sesión');
     }
   };
 
@@ -47,9 +47,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle>Sign In</CardTitle>
+        <CardTitle>Iniciar Sesión</CardTitle>
         <CardDescription>
-          Enter your credentials to access your account
+          Ingrese sus credenciales para acceder a su cuenta
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -61,12 +61,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
           )}
           
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">Correo Electrónico</Label>
             <Input
               id="email"
               name="email"
               type="email"
-              placeholder="Enter your email"
+              placeholder="Ingrese su correo electrónico"
               value={formData.email}
               onChange={handleInputChange}
               required
@@ -75,13 +75,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Contraseña</Label>
             <div className="relative">
               <Input
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
+                placeholder="Ingrese su contraseña"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -105,20 +105,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegis
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            {isLoading ? 'Iniciando Sesión...' : 'Iniciar Sesión'}
           </Button>
 
           {onSwitchToRegister && (
             <div className="text-center">
               <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
+                ¿No tiene una cuenta?{' '}
                 <Button
                   type="button"
                   variant="link"
                   className="p-0"
                   onClick={onSwitchToRegister}
                 >
-                  Sign up
+                  Registrarse
                 </Button>
               </p>
             </div>

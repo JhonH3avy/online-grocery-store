@@ -265,13 +265,15 @@ router.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Respon
 
     return res.json({
       success: true,
-      data: orders,
-      pagination: {
-        total: totalOrders,
-        page,
-        limit,
-        totalPages: Math.ceil(totalOrders / limit),
-        hasMore: page * limit < totalOrders,
+      data: {
+        orders: orders,
+        pagination: {
+          total: totalOrders,
+          page,
+          limit,
+          totalPages: Math.ceil(totalOrders / limit),
+          hasMore: page * limit < totalOrders,
+        }
       },
       message: 'Orders retrieved successfully',
     });

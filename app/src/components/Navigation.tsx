@@ -83,7 +83,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     }}
                   >
                     <UserIcon className="h-4 w-4 mr-2" />
-                    Sign In
+                    Iniciar Sesión
                   </Button>
                   <Button
                     size="sm"
@@ -93,7 +93,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                       setShowAuthModal(true)
                     }}
                   >
-                    Sign Up
+                    Registrarse
                   </Button>
                 </div>
               )}

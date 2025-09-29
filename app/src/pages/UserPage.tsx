@@ -113,10 +113,25 @@ export const UserPage: React.FC = () => {
   const fetchOrders = useCallback(async (page = 1) => {
     try {
       setOrdersLoading(true);
-      const response = await apiClient.get<{ data: Order[]; pagination: any }>(`/orders?page=${page}&limit=10`);
+      // Server now returns: { success: true, data: { orders: Order[], pagination: {...} } }
+      const response = await apiClient.get<{ orders: Order[]; pagination: any }>(`/orders?page=${page}&limit=10`);
+      
       if (response.success && response.data) {
-        // Handle paginated response
-        setOrders(response.data.data || []);
+        // Ensure numeric values are properly converted
+        const ordersWithNumbers = (response.data.orders || []).map(order => ({
+          ...order,
+          total: Number(order.total) || 0,
+          subtotal: Number(order.subtotal) || 0,
+          deliveryFee: Number(order.deliveryFee) || 0,
+          orderItems: (order.orderItems || []).map(item => ({
+            ...item,
+            quantity: Number(item.quantity) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            total: Number(item.total) || 0,
+          }))
+        }));
+        
+        setOrders(ordersWithNumbers);
         setOrdersPagination(response.data.pagination || null);
         setOrdersPage(page);
       }
@@ -141,11 +156,11 @@ export const UserPage: React.FC = () => {
       const response = await apiClient.put('/users/profile', profileData);
       
       if (response.success) {
-        toast.success('Profile updated successfully');
+        toast.success('Perfil actualizado correctamente');
         setIsEditingProfile(false);
         await refreshUser(); // Refresh user data in context
       } else {
-        toast.error('Failed to update profile');
+        toast.error('No se pudo actualizar el perfil');
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
@@ -207,8 +222,8 @@ export const UserPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Loading...</h3>
-              <p className="mt-1 text-sm text-gray-500">Verifying your account information.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Cargando...</h3>
+              <p className="mt-1 text-sm text-gray-500">Verificando la información de su cuenta.</p>
             </div>
           </CardContent>
         </Card>
@@ -245,14 +260,14 @@ export const UserPage: React.FC = () => {
         </div>
 
         <Tabs value={getActiveTab()} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
+          <TabsList className="flex w-full">
+            <TabsTrigger value="profile" className="flex items-center gap-2 flex-1">
               <UserIcon className="h-4 w-4" />
-              Profile
+              Perfil
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
+            <TabsTrigger value="orders" className="flex items-center gap-2 flex-1">
               <ShoppingBagIcon className="h-4 w-4" />
-              Order History
+              Historial de Pedidos
             </TabsTrigger>
           </TabsList>
 
@@ -262,7 +277,7 @@ export const UserPage: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Personal Information</CardTitle>
+                    <CardTitle>Información Personal</CardTitle>
                     <CardDescription>
                       Update your personal details and contact information
                     </CardDescription>
@@ -274,7 +289,7 @@ export const UserPage: React.FC = () => {
                       onClick={() => setIsEditingProfile(true)}
                     >
                       <EditIcon className="h-4 w-4 mr-2" />
-                      Edit
+                      Editar
                     </Button>
                   )}
                 </div>
@@ -282,7 +297,7 @@ export const UserPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">Nombre</Label>
                     <Input
                       id="firstName"
                       value={profileData.firstName}
@@ -291,7 +306,7 @@ export const UserPage: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Apellido</Label>
                     <Input
                       id="lastName"
                       value={profileData.lastName}
@@ -313,7 +328,7 @@ export const UserPage: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Número de Teléfono</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -331,7 +346,7 @@ export const UserPage: React.FC = () => {
                       disabled={profileSaving}
                     >
                       <SaveIcon className="h-4 w-4 mr-2" />
-                      {profileSaving ? 'Saving...' : 'Save Changes'}
+                      {profileSaving ? 'Guardando...' : 'Guardar Cambios'}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -339,7 +354,7 @@ export const UserPage: React.FC = () => {
                       disabled={profileSaving}
                     >
                       <XIcon className="h-4 w-4 mr-2" />
-                      Cancel
+                      Cancelar
                     </Button>
                   </div>
                 )}
@@ -351,7 +366,7 @@ export const UserPage: React.FC = () => {
           <TabsContent value="orders" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order History</CardTitle>
+                <CardTitle>Historial de Pedidos</CardTitle>
                 <CardDescription>
                   View all your past orders and their details
                 </CardDescription>
@@ -360,14 +375,14 @@ export const UserPage: React.FC = () => {
                 {ordersLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                    <p className="mt-2 text-sm text-gray-500">Loading orders...</p>
+                    <p className="mt-2 text-sm text-gray-500">Cargando pedidos...</p>
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-8">
                     <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No orders yet</h3>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Aún no hay pedidos</h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      Start shopping to see your orders here.
+                      Comienza a comprar para ver tus pedidos aquí.
                     </p>
                   </div>
                 ) : (
@@ -378,7 +393,7 @@ export const UserPage: React.FC = () => {
                           <div className="flex items-start justify-between mb-4">
                             <div>
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold">Order #{order.id.slice(-8)}</h3>
+                                <h3 className="font-semibold">Pedido #{order.id.slice(-8)}</h3>
                                 <Badge className={getStatusColor(order.status)}>
                                   {order.status.replace('_', ' ')}
                                 </Badge>
@@ -390,11 +405,11 @@ export const UserPage: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <DollarSignIcon className="h-4 w-4" />
-                                  ${order.total.toFixed(2)}
+                                  ${(Number(order.total) || 0).toFixed(2)}
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <PackageIcon className="h-4 w-4" />
-                                  {order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0} item{(order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0) !== 1 ? 's' : ''}
+                                  {order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0} artículo{(order.orderItems && Array.isArray(order.orderItems) ? order.orderItems.length : 0) !== 1 ? 's' : ''}
                                 </div>
                               </div>
                             </div>
@@ -404,7 +419,7 @@ export const UserPage: React.FC = () => {
 
                           {/* Order Items */}
                           <div className="space-y-3">
-                            <h4 className="font-medium">Items Ordered:</h4>
+                            <h4 className="font-medium">Artículos Pedidos:</h4>
                             {order.orderItems && Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
                               order.orderItems.map((item: OrderItem) => (
                                 <div key={item.id} className="flex items-center justify-between">
@@ -427,7 +442,7 @@ export const UserPage: React.FC = () => {
                                 </div>
                               ))
                             ) : (
-                              <p className="text-sm text-gray-500">No items found in this order.</p>
+                              <p className="text-sm text-gray-500">No se encontraron artículos en este pedido.</p>
                             )}
                           </div>
 
@@ -437,16 +452,16 @@ export const UserPage: React.FC = () => {
                           <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                               <span>Subtotal:</span>
-                              <span>${order.subtotal.toFixed(2)}</span>
+                              <span>${(Number(order.subtotal) || 0).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span>Delivery Fee:</span>
-                              <span>${order.deliveryFee.toFixed(2)}</span>
+                              <span>${(Number(order.deliveryFee) || 0).toFixed(2)}</span>
                             </div>
                             <Separator />
                             <div className="flex justify-between font-semibold">
                               <span>Total:</span>
-                              <span>${order.total.toFixed(2)}</span>
+                              <span>${(Number(order.total) || 0).toFixed(2)}</span>
                             </div>
                           </div>
 
@@ -473,9 +488,9 @@ export const UserPage: React.FC = () => {
                 {ordersPagination && ordersPagination.totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6 pt-4 border-t">
                     <div className="text-sm text-gray-500">
-                      Showing {((ordersPagination.page - 1) * ordersPagination.limit) + 1} to{' '}
-                      {Math.min(ordersPagination.page * ordersPagination.limit, ordersPagination.total)} of{' '}
-                      {ordersPagination.total} orders
+                      Mostrando {((ordersPagination.page - 1) * ordersPagination.limit) + 1} a{' '}
+                      {Math.min(ordersPagination.page * ordersPagination.limit, ordersPagination.total)} de{' '}
+                      {ordersPagination.total} pedidos
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -484,10 +499,10 @@ export const UserPage: React.FC = () => {
                         onClick={() => fetchOrders(ordersPagination.page - 1)}
                         disabled={ordersPagination.page <= 1 || ordersLoading}
                       >
-                        Previous
+                        Anterior
                       </Button>
                       <span className="text-sm">
-                        Page {ordersPagination.page} of {ordersPagination.totalPages}
+                        Página {ordersPagination.page} de {ordersPagination.totalPages}
                       </span>
                       <Button
                         variant="outline"
@@ -495,7 +510,7 @@ export const UserPage: React.FC = () => {
                         onClick={() => fetchOrders(ordersPagination.page + 1)}
                         disabled={!ordersPagination.hasMore || ordersLoading}
                       >
-                        Next
+                        Siguiente
                       </Button>
                     </div>
                   </div>

@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { config } from '../config'
 import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../contexts/CartContext'
 
 // API Services
 import { healthCheck } from '../services/api'
@@ -23,18 +24,11 @@ import { CheckoutModal } from '../components/CheckoutModal'
 // HomePage component
 export function HomePage() {
   const { user, isAuthenticated } = useAuth()
-  const [cartItems, setCartItems] = useState<Record<string, number>>({})
-  const [cart, setCart] = useState<any>(null)
-  const [cartProducts, setCartProducts] = useState<Product[]>([]) // Products in cart from all categories
-  const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg')
+  const { cartState, cartHandlers } = useCart()
+  
+  // HomePage-specific state (non-cart related)
   const [activeCategory, setActiveCategory] = useState('')
   const [activeSubcategory, setActiveSubcategory] = useState('')
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
-  const [hasInitializedCart, setHasInitializedCart] = useState(false)
-  const [lastAuthState, setLastAuthState] = useState<boolean | null>(null)
   
   // API data state
   const [categories, setCategories] = useState<any[]>([])
@@ -44,38 +38,28 @@ export function HomePage() {
   const [categoriesError, setCategoriesError] = useState<string | null>(null)
   const [productsError, setProductsError] = useState<string | null>(null)
 
-  // Check server health and initialize data
-  useEffect(() => {
-    const initializeApp = async () => {
-      setServerStatus('checking')
-      try {
-        // Check server health
-        const healthResponse = await healthCheck()
-        if (!healthResponse.success) {
-          throw new Error('Server health check failed')
-        }
-        
-        setServerStatus('online')
-        toast.success('Connected to server')
-        
-        // Load initial data
-        await loadCategories()
-        await loadProducts() // Load all products initially
-        await loadCart()
-        setHasInitializedCart(true)
-        
-      } catch (error) {
-        console.error('Failed to initialize app:', error)
-        setServerStatus('offline')
-        setCategoriesError('Failed to connect to server')
-        setProductsError('Failed to connect to server')
-        toast.error('Server unavailable - please check your connection')
-      }
-    }
-
-    initializeApp()
-  }, [])
-
+  // Extract cart state and handlers from useCart hook
+  const cartItems = cartState.cartItems
+  const cart = cartState.cart
+  const cartProducts = cartState.cartProducts
+  const weightUnit = cartState.weightUnit
+  const cartDrawerOpen = cartState.cartDrawerOpen
+  const showAuthModal = cartState.showAuthModal
+  const showCheckoutModal = cartState.showCheckoutModal
+  const serverStatus = cartState.serverStatus
+  
+  const addToCart = cartHandlers.handleAddToCart
+  const quantityChange = cartHandlers.handleQuantityChange
+  const removeItem = cartHandlers.handleRemoveItem
+  const setWeightUnit = cartHandlers.setWeightUnit
+  const setCartDrawerOpen = cartHandlers?.setCartDrawerOpen ?? (() => {})
+  const setShowAuthModal = cartHandlers?.setShowAuthModal ?? (() => {})
+  const setShowCheckoutModal = cartHandlers?.setShowCheckoutModal ?? (() => {})
+  const checkout = cartHandlers?.handleCheckout ?? (async () => {
+    toast.error('Funcionalidad de pago no disponible')
+  })
+  const checkoutSuccess = cartHandlers?.handleCheckoutSuccess ?? (async () => {})
+  
   // Load categories from API
   const loadCategories = async () => {
     setCategoriesLoading(true)
@@ -97,8 +81,8 @@ export function HomePage() {
       }
     } catch (error) {
       console.error('Error loading categories:', error)
-      setCategoriesError('Failed to load categories')
-      toast.error('Failed to load categories')
+      setCategoriesError('Error al cargar categorías')
+      toast.error('Error al cargar categorías')
     } finally {
       setCategoriesLoading(false)
     }
@@ -143,297 +127,39 @@ export function HomePage() {
       }
     } catch (error) {
       console.error('Error loading products:', error)
-      setProductsError('Failed to load products')
-      toast.error('Failed to load products')
+      setProductsError('Error al cargar productos')
+      toast.error('Error al cargar productos')
     } finally {
       setProductsLoading(false)
     }
   }
 
-  // Load cart from API or localStorage
-  const loadCart = async () => {
-    try {
-      // Always try to get cart from server first (works for both authenticated and anonymous users)
-      const response = await cartService.getCart()
-      if (response.success && response.data) {
-        setCart(response.data)
-        // Update cart items from API response
-        const newCartItems: Record<string, number> = {}
-        const newCartProducts: Product[] = []
-        
-        // Add null/undefined checks for items array
-        if (response.data.items && Array.isArray(response.data.items)) {
-          response.data.items.forEach((item: any) => {
-            if (item && item.productId) {
-              newCartItems[item.productId] = item.quantity || 0
-              if (item.product) {
-                newCartProducts.push(item.product)
-              }
-            }
-          })
-        }
-        
-        setCartItems(newCartItems)
-        setCartProducts(newCartProducts)
-      } else if (!isAuthenticated) {
-        // If server call failed and user is anonymous, fallback to localStorage
-        const localCartItems = cartService.getLocalCartItems()
-        const newCartItems: Record<string, number> = {}
-        
-        if (Array.isArray(localCartItems)) {
-          localCartItems.forEach(item => {
-            if (item && item.productId) {
-              newCartItems[item.productId] = item.quantity || 0
-            }
-          })
-        }
-        
-        setCartItems(newCartItems)
-        
-        // Fetch product details for items in cart
-        if (localCartItems && localCartItems.length > 0) {
-          try {
-            const productIds = localCartItems.map(item => item.productId).filter(Boolean)
-            // We need to fetch products by IDs - this would require a new API endpoint
-            // For now, we'll keep the existing products in the cart
-            setCartProducts(cartProducts.filter(product => productIds.includes(product.id)))
-          } catch (error) {
-            console.error('Failed to fetch cart product details:', error)
-          }
-        } else {
-          setCartProducts([])
-        }
-      }
-    } catch (error) {
-      console.error('Error loading cart:', error)
-      // Cart errors are non-critical, just log them
-      // Set empty cart state to prevent undefined errors
-      setCartItems({})
-      setCartProducts([])
-    }
-  }
-
-  // Reload cart when authentication status changes
+  // Initialize data on component mount
   useEffect(() => {
-    // Skip if this is the initial render or we haven't done the initial cart load yet
-    if (serverStatus === 'checking' || !hasInitializedCart) {
-      return
-    }
-    
-    // Check if authentication state actually changed
-    if (lastAuthState === null) {
-      // First time setting the authentication state after initialization
-      setLastAuthState(isAuthenticated)
-      return
-    }
-    
-    if (lastAuthState === isAuthenticated) {
-      // No actual change in authentication state
-      return
-    }
-    
-    // Authentication state actually changed - update cart
-    setLastAuthState(isAuthenticated)
-    
-    if (isAuthenticated) {
-      cartService.migrateLocalCart().then(() => {
-        // Reload cart after migration
-        loadCart()
-      }).catch(error => {
-        console.error('Failed to migrate local cart:', error)
-        // Still load cart even if migration fails
-        loadCart()
-      })
-    } else {
-      // User logged out, just load cart normally (anonymous cart)
-      loadCart()
-    }
-  }, [isAuthenticated, serverStatus, hasInitializedCart])
+    loadCategories()
+  }, [])
 
   // Reload products when category/subcategory changes
   useEffect(() => {
-    if (serverStatus === 'online' && categories.length > 0) {
+    if (categories.length > 0) {
       loadProducts()
     }
   }, [activeCategory, activeSubcategory, categories])
 
-  const handleAddToCart = async (product: Product, quantity: number) => {
-    if (serverStatus !== 'online') {
-      toast.error('Cannot add to cart - server offline')
-      return
-    }
-
-    try {
-      const response = await cartService.addToCart({ 
-        productId: product.id, 
-        quantity 
-      })
-      
-      if (response.success) {
-        // Update local state
-        setCartItems(prev => ({
-          ...prev,
-          [product.id]: (prev[product.id] || 0) + quantity
-        }))
-
-        // Add product to cart products if not already there
-        setCartProducts(prev => {
-          const existingProduct = prev.find(p => p.id === product.id)
-          if (!existingProduct) {
-            return [...prev, product]
-          }
-          return prev
-        })
-
-        toast.success(`${product.name} agregado al carrito`)
-        
-        // Reload cart for authenticated users to get server state
-        if (isAuthenticated) {
-          loadCart()
-        }
-      } else {
-        throw new Error(response.error || 'Failed to add to cart')
-      }
-    } catch (error) {
-      console.error('Failed to add to cart:', error)
-      toast.error('Failed to add item to cart')
-    }
-  }
-
-  const handleQuantityChange = async (productId: string, quantity: number) => {
-    if (serverStatus !== 'online') {
-      toast.error('Cannot update cart - server offline')
-      return
-    }
-
-    try {
-      if (quantity <= 0) {
-        await handleRemoveItem(productId)
-        return
-      }
-
-      // Update local state immediately for better UX
-      setCartItems(prev => ({
-        ...prev,
-        [productId]: quantity
-      }))
-
-      if (isAuthenticated) {
-        // Find cart item and update via API
-        const cartItem = cart?.items?.find((item: any) => item.productId === productId)
-        if (cartItem) {
-          const response = await cartService.updateCartItem(cartItem.id, { quantity })
-          if (response.success) {
-            loadCart() // Reload cart from server
-          }
-        }
-      } else {
-        // For anonymous users, update local storage
-        const response = await cartService.updateCartItem(productId, { quantity })
-        if (response.success) {
-          // Local storage already updated by cartService
-        }
-      }
-    } catch (error) {
-      console.error('Failed to update cart item:', error)
-      toast.error('Failed to update cart')
-      // Revert local state on error
-      await loadCart()
-    }
-  }
-
-  const handleRemoveItem = async (productId: string) => {
-    if (serverStatus !== 'online') {
-      toast.error('Cannot remove item - server offline')
-      return
-    }
-
-    try {
-      // Update local state immediately
-      setCartItems(prev => {
-        const newItems = { ...prev }
-        delete newItems[productId]
-        return newItems
-      })
-
-      // Remove from cart products
-      setCartProducts(prev => prev.filter(product => product.id !== productId))
-
-      if (isAuthenticated) {
-        // Find cart item and remove via API
-        const cartItem = cart?.items?.find((item: any) => item.productId === productId)
-        if (cartItem) {
-          const response = await cartService.removeFromCart(cartItem.id)
-          if (response.success) {
-            loadCart() // Reload cart from server
-          }
-        }
-      } else {
-        // For anonymous users, remove from local storage
-        const response = await cartService.removeFromCart(productId)
-        if (response.success) {
-          // Local storage already updated by cartService
-        }
-      }
-
-      const product = cartProducts.find(p => p.id === productId)
-      if (product) {
-        toast.success(`${product.name} eliminado del carrito`)
-      }
-    } catch (error) {
-      console.error('Failed to remove cart item:', error)
-      toast.error('Failed to remove item')
-      // Revert local state on error
-      await loadCart()
-    }
-  }
-
-  const handleCheckout = async () => {
-    if (Object.keys(cartItems).length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
-
-    // Check if user is authenticated
-    if (!isAuthenticated) {
-      toast.error('Please sign in to proceed with checkout');
-      setShowAuthModal(true);
-      return;
-    }
-
-  // Open checkout modal
-  setShowCheckoutModal(true);
-  setCartDrawerOpen(false);
-}
-
-const handleCheckoutSuccess = async () => {
-  // Clear local cart state
-  setCartItems({});
-  setCartProducts([]);
-  setCart(null);
-  
-  // Reload cart from server to confirm it's empty
-  await loadCart();
-}
-
-const retryConnection = async () => {
-    toast.info('Reconnecting to server...')
-    setServerStatus('checking')
+  const retryConnection = async () => {
+    toast.info('Reconectando al servidor...')
     
     try {
       const healthResponse = await healthCheck()
       if (healthResponse.success) {
-        setServerStatus('online')
-        toast.success('Reconnected to server')
+        toast.success('Reconectado al servidor')
         await loadCategories()
         await loadProducts()
-        await loadCart()
       } else {
         throw new Error('Health check failed')
       }
     } catch (error) {
-      setServerStatus('offline')
-      toast.error('Still unable to connect to server')
+      toast.error('Aún no se puede conectar al servidor')
     }
   }
 
@@ -454,8 +180,8 @@ const retryConnection = async () => {
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Connecting to server...</h2>
-          <p className="text-gray-600">Loading your grocery store</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Conectando al servidor...</h2>
+          <p className="text-gray-600">Cargando tu tienda de comestibles</p>
         </div>
       </div>
     )
@@ -467,13 +193,13 @@ const retryConnection = async () => {
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-white flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <WifiOff className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Server Unavailable</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Servidor No Disponible</h2>
           <p className="text-gray-600 mb-6">
-            Unable to connect to the grocery store server. Please check your internet connection and try again.
+            No se puede conectar al servidor de la tienda. Por favor verifique su conexión a internet e intente nuevamente.
           </p>
           <Button onClick={retryConnection} className="bg-green-600 hover:bg-green-700">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry Connection
+            Reintentar Conexión
           </Button>
         </div>
       </div>
@@ -488,7 +214,7 @@ const retryConnection = async () => {
         <Alert className="m-4 border-green-200 bg-green-50">
           <Wifi className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Connected to server - All data is live from database
+            Conectado al servidor - Todos los datos están en vivo desde la base de datos
           </AlertDescription>
         </Alert>
       )}
@@ -498,7 +224,7 @@ const retryConnection = async () => {
         <Alert className="m-4 border-blue-200 bg-blue-50">
           <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
           <AlertDescription className="text-blue-800">
-            Loading fresh data from server...
+            Cargando datos frescos del servidor...
           </AlertDescription>
         </Alert>
       )}
@@ -514,7 +240,7 @@ const retryConnection = async () => {
               className="p-0 h-auto ml-2 text-red-600 underline"
               onClick={loadCategories}
             >
-              Retry
+              Reintentar
             </Button>
           </AlertDescription>
         </Alert>
@@ -530,7 +256,7 @@ const retryConnection = async () => {
               className="p-0 h-auto ml-2 text-red-600 underline"
               onClick={() => loadProducts()}
             >
-              Retry
+              Reintentar
             </Button>
           </AlertDescription>
         </Alert>
@@ -627,8 +353,8 @@ const retryConnection = async () => {
                     <ProductGrid
                       products={products}
                       cartItems={cartItems}
-                      onAddToCart={handleAddToCart}
-                      onQuantityChange={handleQuantityChange}
+                      onAddToCart={addToCart}
+                      onQuantityChange={quantityChange}
                     />
                   ) : (
                     <div className="text-center py-8">
@@ -653,11 +379,11 @@ const retryConnection = async () => {
         {!categoriesLoading && categories.length === 0 && (
           <div className="text-center py-12">
             <AlertCircle className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No categories available</h3>
-            <p className="text-gray-600 mb-4">Unable to load product categories from the server.</p>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No hay categorías disponibles</h3>
+            <p className="text-gray-600 mb-4">No se pueden cargar las categorías de productos del servidor.</p>
             <Button onClick={loadCategories} variant="outline">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retry Loading Categories
+              Reintentar Carga de Categorías
             </Button>
           </div>
         )}
@@ -669,9 +395,9 @@ const retryConnection = async () => {
         products={cartProducts}
         weightUnit={weightUnit}
         onWeightUnitChange={setWeightUnit}
-        onQuantityChange={handleQuantityChange}
-        onRemoveItem={handleRemoveItem}
-        onCheckout={handleCheckout}
+        onQuantityChange={quantityChange}
+        onRemoveItem={removeItem}
+        onCheckout={checkout}
         open={cartDrawerOpen}
         onOpenChange={setCartDrawerOpen}
       />
@@ -694,7 +420,7 @@ const retryConnection = async () => {
         cartItems={cartItems}
         cartProducts={cartProducts}
         weightUnit={weightUnit}
-        onCheckoutSuccess={handleCheckoutSuccess}
+        onCheckoutSuccess={checkoutSuccess}
       />
     </div>
   )
