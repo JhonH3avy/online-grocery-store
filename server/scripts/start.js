@@ -42,7 +42,7 @@ async function ensurePrismaClient() {
     console.log('Prisma client not found, generating...');
     
     const { spawn } = require('child_process');
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const child = spawn('npx', ['prisma', 'generate'], { cwd: path.join(__dirname, '..'), shell: false });
 
       let stdout = '';
@@ -67,6 +67,8 @@ async function ensurePrismaClient() {
         console.log('Prisma client generated successfully');
         console.log('Stdout:', stdout);
         resolve();
+      });
+    
     // Start the main server
     const serverPath = path.join(__dirname, '..', 'dist', 'index.js');
     if (fs.existsSync(serverPath)) {
