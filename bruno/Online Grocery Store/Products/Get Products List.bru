@@ -5,7 +5,13 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/products
+  url: {{baseUrl}}/products?limit=20&category=lácteos
   body: none
   auth: inherit
+}
+
+params:query {
+  limit: 20
+  category: lácteos
+  ~subcategory: leche
 }
