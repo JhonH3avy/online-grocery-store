@@ -1,0 +1,46 @@
+# Azure App Service optimized Dockerfile
+FROM node:22-alpine
+
+# Install OpenSSL for Prisma and other necessary tools
+RUN apk add --no-cache openssl python3 make g++
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production --no-audit --no-fund
+
+# Install prisma CLI separately to ensure it's available
+RUN npm install prisma
+
+# Copy all source files
+COPY . .
+
+# Ensure prisma directory permissions
+RUN chmod -R 755 prisma/
+
+# Generate Prisma client with all necessary binaries
+ENV PRISMA_CLI_BINARY_TARGETS="native,linux-musl,linux-musl-openssl-3.0.x"
+RUN npx prisma generate
+
+# Build the TypeScript application
+RUN npm run build
+
+# Create necessary directories
+RUN mkdir -p uploads && chmod 755 uploads
+RUN mkdir -p logs && chmod 755 logs
+
+# Ensure scripts are executable
+RUN chmod +x scripts/start.js
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 5000) + '/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+# Expose port
+EXPOSE 5000
+
+# Use the startup script
+CMD ["node", "scripts/start.js"]
