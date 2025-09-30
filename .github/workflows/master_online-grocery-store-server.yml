@@ -26,29 +26,24 @@ jobs:
         with:
           node-version: '22.x'
 
-      - name: npm install, generate Prisma client, build, and test
+      - name: npm install, build, and test
         working-directory: server
         run: |
           npm install
-          npm run db:generate
           npm run build --if-present
           npm run test --if-present
 
       - name: Create deployment package
         working-directory: server
         run: |
-          # Remove dev dependencies but keep prisma for runtime
+          # Remove dev dependencies for production
           npm prune --production
-          npm install prisma
-          # Regenerate Prisma client with production binaries
-          npx prisma generate
           # Create a clean deployment directory
           mkdir -p ../deploy
           # Copy necessary files for deployment
           cp -r dist ../deploy/
           cp -r node_modules ../deploy/
           cp package*.json ../deploy/
-          cp -r prisma ../deploy/
           cp -r scripts ../deploy/
           # Create uploads directory
           mkdir -p ../deploy/uploads

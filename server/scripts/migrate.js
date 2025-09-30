@@ -1,5 +1,23 @@
 const { query } = require('../dist/services/database');
 
+// Helper function to get descriptive migration names
+function getMigrationName(index) {
+  const names = [
+    'create_users_table',
+    'create_categories_table',
+    'create_subcategories_table',
+    'create_products_table',
+    'create_addresses_table',
+    'create_cart_items_table',
+    'create_orders_table',
+    'create_order_items_table',
+    'create_inventory_table',
+    'create_reviews_table',
+    'create_contact_submissions_table'
+  ];
+  return names[index] || `migration_${index + 1}`;
+}
+
 const migrations = [
   // Migration 001: Create users table
   `
@@ -196,6 +214,16 @@ async function runMigrations() {
   try {
     // Create migrations tracking table
     await query(`
+      CREATE TABLE IF NOT EXISTS migration_history (
+        id SERIAL PRIMARY KEY,
+        migration_name VARCHAR(255) NOT NULL,
+        migration_number INTEGER UNIQUE NOT NULL,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // Keep backwards compatibility with old table name
+    await query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id SERIAL PRIMARY KEY,
         migration_number INTEGER UNIQUE NOT NULL,
@@ -221,6 +249,10 @@ async function runMigrations() {
       try {
         await query(migrations[i]);
         await query('INSERT INTO migrations (migration_number) VALUES ($1)', [migrationNumber]);
+        // Also insert into new migration_history table with descriptive name
+        const migrationName = `migration_${migrationNumber.toString().padStart(3, '0')}_${getMigrationName(i)}`;
+        await query('INSERT INTO migration_history (migration_name, migration_number, executed_at) VALUES ($1, $2, NOW()) ON CONFLICT (migration_number) DO NOTHING', 
+          [migrationName, migrationNumber]);
         console.log(`✅ Migration ${migrationNumber} completed`);
       } catch (error) {
         console.error(`❌ Migration ${migrationNumber} failed:`, error);
