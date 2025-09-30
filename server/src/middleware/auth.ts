@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../services/prisma';
+import { UserModel } from '../models/User';
 
 // Extend Request interface to include user information
 export interface AuthenticatedRequest extends Request {
@@ -41,19 +41,9 @@ export const authenticateToken = async (
       const decoded = jwt.verify(token, JWT_SECRET as string) as { userId: string; email: string };
       
       // Verify user still exists and is active
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          isActive: true,
-        }
-      });
+      const user = await UserModel.findById(decoded.userId);
 
-      if (!user || !user.isActive) {
+      if (!user || !user.is_active) {
         res.status(401).json({
           success: false,
           error: 'User not found or inactive',
@@ -65,8 +55,8 @@ export const authenticateToken = async (
       req.user = {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        firstName: user.first_name,
+        lastName: user.last_name,
         role: user.role,
       };
 
@@ -112,25 +102,15 @@ export const optionalAuth = async (
       const decoded = jwt.verify(token, JWT_SECRET as string) as { userId: string; email: string };
       
       // Verify user still exists and is active
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          isActive: true,
-        }
-      });
+      const user = await UserModel.findById(decoded.userId);
 
-      if (user && user.isActive) {
+      if (user && user.is_active) {
         // Add user info to request object
         req.user = {
           id: user.id,
           email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
+          firstName: user.first_name,
+          lastName: user.last_name,
           role: user.role,
         };
       }

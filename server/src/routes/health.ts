@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { checkDatabaseConnection } from '../services/prisma';
+import { checkDatabaseConnection } from '../services/database';
 
 const router = Router();
 

@@ -1,98 +1,59 @@
 import { Router } from 'express';
-import { prisma } from '../services/prisma';
+import { ProductModel } from '../models/Product';
 
 const router = Router();
 
 // GET /api/products - Get all products (with filtering)
 router.get('/', async (req, res) => {
   try {
-    const { category, subcategory, search, limit = '20', offset = '0', featured, page } = req.query;
+    const { 
+      category, 
+      subcategory, 
+      categoryId,    // Support legacy ID-based filtering
+      subcategoryId, // Support legacy ID-based filtering
+      search, 
+      limit = '20', 
+      offset = '0', 
+      featured, 
+      page,
+      minPrice,
+      maxPrice 
+    } = req.query;
     
-    // Build where clause for filtering
-    const where: any = {
-      isActive: true, // Only show active products
+    // Parse pagination parameters
+    const limitNum = Math.min(parseInt(limit as string, 10) || 20, 50); // Max 50
+    const pageNum = parseInt(page as string, 10) || 1;
+
+    // Build search options
+    const searchOptions: any = {
+      page: pageNum,
+      limit: limitNum,
     };
 
-    // Filter by category (using slug or name)
-    if (category && typeof category === 'string') {
-      where.OR = [
-        { category: { slug: category } },
-        { category: { name: { contains: category, mode: 'insensitive' } } }
-      ];
-    }
+    // Support filtering by category/subcategory names (preferred) or IDs (legacy)
+    if (category) searchOptions.categoryName = category as string;
+    if (subcategory) searchOptions.subcategoryName = subcategory as string;
+    if (categoryId) searchOptions.categoryId = categoryId as string;
+    if (subcategoryId) searchOptions.subcategoryId = subcategoryId as string;
+    if (search) searchOptions.search = search as string;
+    if (featured === 'true') searchOptions.featured = true;
+    if (minPrice) searchOptions.minPrice = parseFloat(minPrice as string);
+    if (maxPrice) searchOptions.maxPrice = parseFloat(maxPrice as string);
 
-    // Filter by subcategory (using slug or name)
-    if (subcategory && typeof subcategory === 'string') {
-      where.subcategory = {
-        OR: [
-          { slug: subcategory },
-          { name: { contains: subcategory, mode: 'insensitive' } }
-        ]
-      };
-    }
+    // Get products using the model
+    const { products, total } = await ProductModel.list(searchOptions);
 
-    // Filter by search term
-    if (search && typeof search === 'string') {
-      const searchTerm = search.toLowerCase();
-      where.OR = [
-        { name: { contains: searchTerm, mode: 'insensitive' } },
-        { description: { contains: searchTerm, mode: 'insensitive' } }
-      ];
-    }
-
-    // Filter by featured
-    if (featured === 'true') {
-      where.isFeatured = true;
-    }
-
-    // Pagination
-    const limitNum = parseInt(limit as string, 10);
-    const offsetNum = page ? (parseInt(page as string, 10) - 1) * limitNum : parseInt(offset as string, 10);
-
-    // Get total count for pagination
-    const total = await prisma.product.count({ where });
-
-    // Get products with relations
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-      },
-      orderBy: [
-        { isFeatured: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      skip: offsetNum,
-      take: limitNum,
-    });
-
-    // Transform products to match frontend expectations
-    const transformedProducts = products.map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      category: product.category.slug,
-      subcategory: product.subcategory.slug,
-      categoryId: product.categoryId,
-      subcategoryId: product.subcategoryId,
-      featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0,
-    }));
-
-    return res.status(200).json({
+    return res.json({
       success: true,
       data: {
-        products: transformedProducts,
-        total,
-        page: Math.floor(offsetNum / limitNum) + 1,
-        limit: limitNum,
-        hasMore: offsetNum + limitNum < total
+        products: products,
+        pagination: {
+          total: total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+          hasMore: pageNum * limitNum < total
+        }
       },
       message: 'Products retrieved successfully'
     });
@@ -117,112 +78,38 @@ router.get('/search', async (req, res) => {
       });
     }
     
-    const searchTerm = q.toLowerCase();
-    const limitNum = parseInt(limit as string, 10);
+    const limitNum = Math.min(parseInt(limit as string, 10) || 20, 50);
     
-    const products = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { description: { contains: searchTerm, mode: 'insensitive' } },
-          { category: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { category: { slug: { contains: searchTerm, mode: 'insensitive' } } },
-          { subcategory: { name: { contains: searchTerm, mode: 'insensitive' } } },
-          { subcategory: { slug: { contains: searchTerm, mode: 'insensitive' } } }
-        ]
-      },
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-      },
-      take: limitNum,
-      orderBy: [
-        { isFeatured: 'desc' },
-        { name: 'asc' }
-      ]
+    const { products } = await ProductModel.list({
+      search: q,
+      limit: limitNum,
+      page: 1
     });
 
-    // Transform products to match frontend expectations
-    const transformedProducts = products.map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      category: product.category.slug,
-      subcategory: product.subcategory.slug,
-      categoryId: product.categoryId,
-      subcategoryId: product.subcategoryId,
-      featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0,
-    }));
-    
     return res.status(200).json({
       success: true,
-      data: {
-        products: transformedProducts,
-        total: transformedProducts.length,
-        page: 1,
-        limit: limitNum,
-        hasMore: false
-      },
-      message: `Found ${transformedProducts.length} products matching '${q}'`
+      data: products,
+      message: 'Search completed successfully'
     });
   } catch (error) {
-    console.error('Error searching products:', error);
+    console.error('Search error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to search products'
+      error: 'Search failed'
     });
   }
 });
 
-// GET /api/products/featured - Get featured products (must be before /:id route)
+// GET /api/products/featured - Get featured products
 router.get('/featured', async (req, res) => {
   try {
-    const { limit = '8' } = req.query;
-    const limitNum = parseInt(limit as string, 10);
-
-    const featuredProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        isFeatured: true
-      },
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-      },
-      take: limitNum,
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
-
-    // Transform products to match frontend expectations
-    const transformedProducts = featuredProducts.map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      category: product.category.slug,
-      subcategory: product.subcategory.slug,
-      categoryId: product.categoryId,
-      subcategoryId: product.subcategoryId,
-      featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0,
-    }));
+    const limit = Math.min(parseInt(req.query.limit as string) || 8, 20);
     
+    const products = await ProductModel.getFeatured(limit);
+
     return res.status(200).json({
       success: true,
-      data: transformedProducts,
+      data: products,
       message: 'Featured products retrieved successfully'
     });
   } catch (error) {
@@ -234,133 +121,67 @@ router.get('/featured', async (req, res) => {
   }
 });
 
-// GET /api/products/category/:categoryId - Get products by category
-router.get('/category/:categoryId', async (req, res) => {
+// GET /api/products/category/:categoryName - Get products by category name
+router.get('/category/:categoryName', async (req, res) => {
   try {
-    const { categoryId } = req.params;
-    const { limit = '20' } = req.query;
-    const limitNum = parseInt(limit as string, 10);
+    const { categoryName } = req.params;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
     
-    const categoryProducts = await prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { category: { slug: categoryId } },
-          { category: { id: categoryId } },
-          { category: { name: { contains: categoryId, mode: 'insensitive' } } }
-        ]
-      },
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-      },
-      take: limitNum,
-      orderBy: [
-        { isFeatured: 'desc' },
-        { createdAt: 'desc' }
-      ]
-    });
-
-    // Transform products to match frontend expectations
-    const transformedProducts = categoryProducts.map((product: any) => ({
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      category: product.category.slug,
-      subcategory: product.subcategory.slug,
-      categoryId: product.categoryId,
-      subcategoryId: product.subcategoryId,
-      featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0,
-    }));
+    // Try to get by category name first (slug), fallback to ID for backward compatibility
+    let products;
     
-    return res.status(200).json({
-      success: true,
-      data: transformedProducts,
-      message: `Products for category '${categoryId}' retrieved successfully`
-    });
-  } catch (error) {
-    console.error('Error fetching products by category:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to retrieve products by category'
-    });
-  }
-});
-
-// GET /api/products/availability/:id - Check product availability
-router.get('/availability/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
+    // Check if it looks like a UUID (backward compatibility)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(categoryName);
     
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        inventory: true
-      }
-    });
-    
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+    if (isUuid) {
+      products = await ProductModel.getByCategory(categoryName, limit);
+    } else {
+      products = await ProductModel.getByCategoryName(categoryName, limit);
     }
-    
-    const stock = product.inventory?.quantity || 0;
-    
+
     return res.status(200).json({
       success: true,
-      data: {
-        available: stock > 0 && product.isActive,
-        stock: stock,
-        productId: product.id,
-        productName: product.name,
-        isActive: product.isActive
-      },
-      message: 'Product availability checked successfully'
+      data: products,
+      message: 'Category products retrieved successfully'
     });
   } catch (error) {
-    console.error('Error checking product availability:', error);
+    console.error('Error fetching category products:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to check product availability'
+      error: 'Failed to retrieve category products'
     });
   }
 });
 
-// GET /api/products/:id - Get single product details (must be last among GET routes)
+// GET /api/products/subcategory/:subcategoryName - Get products by subcategory name
+router.get('/subcategory/:subcategoryName', async (req, res) => {
+  try {
+    const { subcategoryName } = req.params;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+    
+    const products = await ProductModel.getBySubcategoryName(subcategoryName, limit);
+
+    return res.status(200).json({
+      success: true,
+      data: products,
+      message: 'Subcategory products retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching subcategory products:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve subcategory products'
+    });
+  }
+});
+
+// GET /api/products/:id - Get single product
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-        reviews: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        }
-      }
-    });
-    
+    const product = await ProductModel.findById(id);
+
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -368,38 +189,9 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Transform product to match frontend expectations
-    const transformedProduct = {
-      id: product.id,
-      name: product.name,
-      price: parseFloat(product.price.toString()),
-      unit: product.unit,
-      description: product.description,
-      imageUrl: product.imageUrl,
-      category: product.category.slug,
-      subcategory: product.subcategory.slug,
-      categoryId: product.categoryId,
-      subcategoryId: product.subcategoryId,
-      featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0 && product.isActive,
-      isActive: product.isActive,
-      reviews: product.reviews.map((review: any) => ({
-        id: review.id,
-        rating: review.rating,
-        comment: review.comment,
-        userName: `${review.user.firstName} ${review.user.lastName}`,
-        createdAt: review.createdAt
-      })),
-      avgRating: product.reviews.length > 0 
-        ? product.reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / product.reviews.length 
-        : 0,
-      reviewCount: product.reviews.length
-    };
-
     return res.status(200).json({
       success: true,
-      data: transformedProduct,
+      data: product,
       message: 'Product retrieved successfully'
     });
   } catch (error) {

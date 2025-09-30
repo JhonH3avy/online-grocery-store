@@ -1,23 +1,12 @@
 import { Router } from 'express';
-import { prisma } from '../services/prisma';
+import { CategoryModel } from '../models/Category';
 
 const router = Router();
 
 // GET /api/categories - Get all categories with subcategories
 router.get('/', async (req, res) => {
   try {
-    const categories = await prisma.category.findMany({
-      include: {
-        subcategories: {
-          orderBy: {
-            name: 'asc'
-          }
-        }
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    });
+    const categories = await CategoryModel.findAll();
 
     return res.status(200).json({
       success: true,
@@ -33,21 +22,21 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/categories/:id - Get specific category with subcategories
-router.get('/:id', async (req, res) => {
+// GET /api/categories/:identifier - Get specific category with subcategories (by ID or name)
+router.get('/:identifier', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { identifier } = req.params;
     
-    const category = await prisma.category.findUnique({
-      where: { id },
-      include: {
-        subcategories: {
-          orderBy: {
-            name: 'asc'
-          }
-        }
-      }
-    });
+    let category;
+    
+    // Check if it looks like a UUID (backward compatibility)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    
+    if (isUuid) {
+      category = await CategoryModel.findById(identifier);
+    } else {
+      category = await CategoryModel.findByName(identifier);
+    }
 
     if (!category) {
       return res.status(404).json({
@@ -70,29 +59,35 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// GET /api/categories/:id/subcategories - Get subcategories for a category
-router.get('/:id/subcategories', async (req, res) => {
+// GET /api/categories/:identifier/subcategories - Get subcategories for a category (by ID or name)
+router.get('/:identifier/subcategories', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { identifier } = req.params;
     
-    // First check if category exists
-    const category = await prisma.category.findUnique({
-      where: { id }
-    });
+    let categoryExists;
+    let subcategories;
+    
+    // Check if it looks like a UUID (backward compatibility)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    
+    if (isUuid) {
+      categoryExists = await CategoryModel.categoryExists(identifier);
+      if (categoryExists) {
+        subcategories = await CategoryModel.findSubcategories(identifier);
+      }
+    } else {
+      categoryExists = await CategoryModel.categoryExistsByName(identifier);
+      if (categoryExists) {
+        subcategories = await CategoryModel.findSubcategoriesByName(identifier);
+      }
+    }
 
-    if (!category) {
+    if (!categoryExists) {
       return res.status(404).json({
         success: false,
         error: 'Category not found'
       });
     }
-
-    const subcategories = await prisma.subcategory.findMany({
-      where: { categoryId: id },
-      orderBy: {
-        name: 'asc'
-      }
-    });
 
     return res.status(200).json({
       success: true,

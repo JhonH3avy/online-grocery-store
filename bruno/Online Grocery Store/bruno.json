@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Online Grocery Store",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

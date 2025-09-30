@@ -1,36 +1,28 @@
 FROM node:22-alpine
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
-
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for Prisma)
-RUN npm ci
+# Install dependencies
+RUN npm ci --only=production --no-audit --no-fund
 
-# Copy source code and Prisma schema
+# Copy source code
 COPY . .
 
-# Generate Prisma client with all required binaries for production
-RUN npx prisma generate
-
-# Build the application
+# Build the TypeScript application
 RUN npm run build
 
-# Remove dev dependencies but keep prisma CLI for potential runtime needs
-RUN npm prune --production && npm install prisma@$(node -p "require('./package.json').devDependencies['prisma']") @prisma/client@$(node -p "require('./package.json').dependencies['@prisma/client']")
+# Create necessary directories
+RUN mkdir -p uploads && chmod 755 uploads
 
-# Ensure Prisma client is available and re-generate if needed
-RUN npx prisma generate
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 5000) + '/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Expose port
 EXPOSE 5000
-
-# Create uploads directory
-RUN mkdir -p uploads
 
 # Start the application
 CMD ["npm", "start"]
