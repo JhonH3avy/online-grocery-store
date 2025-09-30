@@ -41,18 +41,42 @@ async function ensurePrismaClient() {
   if (!fs.existsSync(prismaClientPath)) {
     console.log('Prisma client not found, generating...');
     
+    const { spawn } = require('child_process');
     return new Promise((resolve, reject) => {
-      exec('npx prisma generate', { cwd: path.join(__dirname, '..') }, (error, stdout, stderr) => {
-        if (error) {
-          console.error('Failed to generate Prisma client:', error);
+      const child = spawn('npx', ['prisma', 'generate'], { cwd: path.join(__dirname, '..'), shell: false });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code !== 0) {
+          console.error('Failed to generate Prisma client: Process exited with code', code);
           console.error('Stdout:', stdout);
           console.error('Stderr:', stderr);
-          reject(error);
+          reject(new Error('Prisma generate failed'));
           return;
         }
         console.log('Prisma client generated successfully');
         console.log('Stdout:', stdout);
         resolve();
+    // Start the main server
+    const serverPath = path.join(__dirname, '..', 'dist', 'index.js');
+    if (fs.existsSync(serverPath)) {
+      await import(serverPath);
+    } else {
+      throw new Error(`Server entry point not found at ${serverPath}`);
+    }
+      child.on('error', (error) => {
+        console.error('Failed to start Prisma generate process:', error);
+        reject(error);
       });
     });
   }

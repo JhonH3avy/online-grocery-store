@@ -21,7 +21,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Remove dev dependencies but keep prisma CLI for potential runtime needs
-RUN npm prune --production && npm install prisma
+RUN npm prune --production && npm install prisma@$(node -p "require('./package.json').devDependencies['prisma']") @prisma/client@$(node -p "require('./package.json').dependencies['@prisma/client']")
 
 # Ensure Prisma client is available and re-generate if needed
 RUN npx prisma generate

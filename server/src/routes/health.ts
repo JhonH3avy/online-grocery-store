@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
       database: {
         connected: false,
         status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Internal server error'
       }
     });
   }
