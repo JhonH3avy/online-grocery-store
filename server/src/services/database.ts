@@ -2,28 +2,58 @@ import { Pool, PoolClient } from 'pg';
 
 // Function to determine SSL configuration
 const getSSLConfig = () => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_URL || '';
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  
+  console.log('🔗 Database connection configuration:');
+  console.log(`- Environment: ${nodeEnv}`);
+  console.log(`- Database URL configured: ${databaseUrl ? 'true' : 'false'}`);
   
   // If DATABASE_URL explicitly includes sslmode parameter, respect it
-  if (databaseUrl?.includes('sslmode=')) {
+  if (databaseUrl.includes('sslmode=')) {
     if (databaseUrl.includes('sslmode=disable')) {
+      console.log('- SSL mode: disabled (explicit)');
       return false;
     } else if (databaseUrl.includes('sslmode=require')) {
+      console.log('- SSL mode: required (explicit)');
       return { rejectUnauthorized: false };
+    } else if (databaseUrl.includes('sslmode=verify-ca')) {
+      console.log('- SSL mode: verify-ca (explicit)');
+      return { rejectUnauthorized: true };
+    } else if (databaseUrl.includes('sslmode=verify-full')) {
+      console.log('- SSL mode: verify-full (explicit)');
+      return { rejectUnauthorized: true };
     }
   }
   
   // For local development (localhost or 127.0.0.1), disable SSL
-  if (databaseUrl?.includes('localhost') || databaseUrl?.includes('127.0.0.1')) {
+  if (databaseUrl.includes('localhost') || databaseUrl.includes('127.0.0.1')) {
+    console.log('- SSL enabled: false (localhost detected)');
     return false;
   }
   
+  // Azure PostgreSQL always requires SSL
+  if (databaseUrl.includes('azure.com') || databaseUrl.includes('postgres.database.azure.com')) {
+    console.log('- SSL enabled: true (Azure PostgreSQL detected)');
+    console.log('- ⚠️  Note: Azure requires SSL. Add ?sslmode=require to your DATABASE_URL for explicit configuration');
+    return { rejectUnauthorized: false };
+  }
+  
+  // Other cloud providers that typically require SSL
+  if (databaseUrl.includes('amazonaws.com') || databaseUrl.includes('heroku.com') || 
+      databaseUrl.includes('digitalocean.com') || databaseUrl.includes('supabase.com')) {
+    console.log('- SSL enabled: true (cloud provider detected)');
+    return { rejectUnauthorized: false };
+  }
+  
   // For production or cloud databases, enable SSL but don't reject unauthorized
-  if (process.env.NODE_ENV === 'production') {
+  if (nodeEnv === 'production') {
+    console.log('- SSL enabled: true (production environment)');
     return { rejectUnauthorized: false };
   }
   
   // Default to no SSL for development
+  console.log('- SSL enabled: false (development environment)');
   return false;
 };
 

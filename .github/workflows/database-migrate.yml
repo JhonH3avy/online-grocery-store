@@ -67,10 +67,19 @@ jobs:
           echo "Setting up environment for ${{ github.event.inputs.environment }}"
           case "${{ github.event.inputs.environment }}" in
             production)
-              echo "DATABASE_URL=${{ secrets.PRODUCTION_DATABASE_URL }}" >> $GITHUB_ENV
+              # Azure PostgreSQL requires SSL
+              DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
+              if [[ "$DATABASE_URL" == *"azure.com"* ]] && [[ "$DATABASE_URL" != *"sslmode"* ]]; then
+                DATABASE_URL="${DATABASE_URL}?sslmode=require"
+              fi
+              echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
               ;;
             staging)
-              echo "DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}" >> $GITHUB_ENV
+              DATABASE_URL="${{ secrets.STAGING_DATABASE_URL }}"
+              if [[ "$DATABASE_URL" == *"azure.com"* ]] && [[ "$DATABASE_URL" != *"sslmode"* ]]; then
+                DATABASE_URL="${DATABASE_URL}?sslmode=require"
+              fi
+              echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
               ;;
             development)
               echo "DATABASE_URL=${{ secrets.DEVELOPMENT_DATABASE_URL }}" >> $GITHUB_ENV
