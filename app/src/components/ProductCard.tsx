@@ -9,7 +9,7 @@ export interface Product {
   price: number
   unit: string
   description: string
-  imageUrl: string
+  image_url: string
   category: string
   subcategory: string
 }
@@ -26,7 +26,7 @@ export function ProductCard({ product, quantity, onAddToCart, onQuantityChange }
     <Card className="h-full flex flex-col">
       <div className="aspect-square overflow-hidden rounded-t-lg">
         <ImageWithFallback
-          src={product.imageUrl}
+          src={product.image_url}
           alt={product.name}
           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
         />
