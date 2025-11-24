@@ -6,7 +6,7 @@
 
 export const prodConfig = {
   api: {
-    baseUrl: '/api', // Nginx proxy in production
+    baseUrl: 'https://online-grocery-store-server-gse6cwhfbkfyfrc8.centralus-01.azurewebsites.net/api',
     timeout: 10000,
     retries: 3,
   },
