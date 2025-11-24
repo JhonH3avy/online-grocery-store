@@ -97,7 +97,7 @@ export function CartDrawer({
                 <div key={productId} className="flex items-center gap-3 p-3 border rounded-lg">
                   <div className="w-16 h-16 overflow-hidden rounded">
                     <ImageWithFallback
-                      src={product.imageUrl}
+                      src={product.image_url}
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />

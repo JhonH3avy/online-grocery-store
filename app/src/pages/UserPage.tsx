@@ -238,8 +238,8 @@ export const UserPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="text-center">
               <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Not logged in</h3>
-              <p className="mt-1 text-sm text-gray-500">Please log in to view your profile.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No has iniciado sesión</h3>
+              <p className="mt-1 text-sm text-gray-500">Por favor, inicia sesión para ver tu perfil.</p>
             </div>
           </CardContent>
         </Card>
@@ -253,9 +253,9 @@ export const UserPage: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Mi Cuenta</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your profile information and view your order history
+            Administra la información de tu perfil y consulta tu historial de pedidos
           </p>
         </div>
 
@@ -279,7 +279,7 @@ export const UserPage: React.FC = () => {
                   <div>
                     <CardTitle>Información Personal</CardTitle>
                     <CardDescription>
-                      Update your personal details and contact information
+                      Actualiza tus datos personales y de contacto
                     </CardDescription>
                   </div>
                   {!isEditingProfile && (
@@ -368,7 +368,7 @@ export const UserPage: React.FC = () => {
               <CardHeader>
                 <CardTitle>Historial de Pedidos</CardTitle>
                 <CardDescription>
-                  View all your past orders and their details
+                  Consulta todos tus pedidos anteriores y sus detalles
                 </CardDescription>
               </CardHeader>
               <CardContent>

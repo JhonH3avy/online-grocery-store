@@ -39,7 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="sr-only">
-            {mode === 'login' ? 'Sign In' : 'Create Account'}
+            {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </DialogTitle>
         </DialogHeader>
         

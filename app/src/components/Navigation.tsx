@@ -52,7 +52,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 onClick={onCartDrawerOpen || (() => {})}
               >
                 <ShoppingCart className="h-5 w-5" />
-                <span className="ml-2 hidden sm:inline">Cart</span>
+                <span className="ml-2 hidden sm:inline">Carrito</span>
                 {totalCartItems > 0 && (
                   <span 
                     className="absolute -top-2 -right-2 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center font-semibold border border-white shadow-md"

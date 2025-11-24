@@ -193,7 +193,7 @@ export const cartService = {
   // Add item to cart
   addToCart: async (data: AddToCartRequest): Promise<ApiResponse<Cart>> => {
     if (isAuthenticated()) {
-      return apiClient.post<Cart>('/cart/items', data);
+      return apiClient.post<Cart>('/cart', data);
     } else {
       // Add to local storage for anonymous users
       localCartOperations.addItem(data.productId, data.quantity);
@@ -204,7 +204,7 @@ export const cartService = {
   // Update cart item quantity
   updateCartItem: async (itemId: string, data: UpdateCartItemRequest): Promise<ApiResponse<Cart>> => {
     if (isAuthenticated()) {
-      return apiClient.put<Cart>(`/cart/items/${itemId}`, data);
+      return apiClient.put<Cart>(`/cart/${itemId}`, data);
     } else {
       // For local cart, itemId is actually the productId
       localCartOperations.updateItem(itemId, data.quantity);
@@ -215,7 +215,7 @@ export const cartService = {
   // Remove item from cart
   removeFromCart: async (itemId: string): Promise<ApiResponse<Cart>> => {
     if (isAuthenticated()) {
-      return apiClient.delete<Cart>(`/cart/items/${itemId}`);
+      return apiClient.delete<Cart>(`/cart/${itemId}`);
     } else {
       // For local cart, itemId is actually the productId
       localCartOperations.removeItem(itemId);
@@ -226,7 +226,7 @@ export const cartService = {
   // Clear entire cart
   clearCart: async (): Promise<ApiResponse<{ message: string }>> => {
     if (isAuthenticated()) {
-      return apiClient.delete<{ message: string }>('/cart/clear');
+      return apiClient.delete<{ message: string }>('/cart');
     } else {
       localCartOperations.clearCart();
       return {

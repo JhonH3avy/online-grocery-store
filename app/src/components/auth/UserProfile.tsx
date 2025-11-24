@@ -73,28 +73,28 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         {onMyAccount && (
           <DropdownMenuItem onClick={onMyAccount} className="cursor-pointer">
             <UserIcon className="mr-2 h-4 w-4" />
-            <span>My Account</span>
+            <span>Mi Cuenta</span>
           </DropdownMenuItem>
         )}
         
         {onOrderHistory && (
           <DropdownMenuItem onClick={onOrderHistory} className="cursor-pointer">
             <ShoppingBagIcon className="mr-2 h-4 w-4" />
-            <span>Order History</span>
+            <span>Historial de Pedidos</span>
           </DropdownMenuItem>
         )}
         
         {onAddresses && (
           <DropdownMenuItem onClick={onAddresses} className="cursor-pointer">
             <MapPinIcon className="mr-2 h-4 w-4" />
-            <span>Addresses</span>
+            <span>Direcciones</span>
           </DropdownMenuItem>
         )}
         
         {onSettings && (
           <DropdownMenuItem onClick={onSettings} className="cursor-pointer">
             <SettingsIcon className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <span>Configuración</span>
           </DropdownMenuItem>
         )}
         
@@ -102,7 +102,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({
         
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
           <LogOutIcon className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          <span>Cerrar Sesión</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

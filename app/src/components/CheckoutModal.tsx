@@ -367,7 +367,7 @@ export function CheckoutModal({
                     <div key={productId} className="flex items-center gap-3 p-3 border rounded-lg">
                       <div className="w-12 h-12 overflow-hidden rounded">
                         <ImageWithFallback
-                          src={product.imageUrl}
+                          src={product.image_url}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
