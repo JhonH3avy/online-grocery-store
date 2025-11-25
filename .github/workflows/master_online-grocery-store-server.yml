@@ -1,12 +1,15 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - online-grocery-store-server
+name: Build and deploy Server
 
 on:
   push:
     branches:
       - master
+    paths:
+      - 'server/**'
+      - '.github/workflows/master_online-grocery-store-server.yml'
   workflow_dispatch:
 
 jobs:
@@ -24,16 +27,32 @@ jobs:
           node-version: '22.x'
 
       - name: npm install, build, and test
+        working-directory: server
         run: |
           npm install
           npm run build --if-present
           npm run test --if-present
 
+      - name: Create deployment package
+        working-directory: server
+        run: |
+          # Remove dev dependencies for production
+          npm prune --production
+          # Create a clean deployment directory
+          mkdir -p ../deploy
+          # Copy necessary files for deployment
+          cp -r dist ../deploy/
+          cp -r node_modules ../deploy/
+          cp package*.json ../deploy/
+          cp -r scripts ../deploy/
+          # Create uploads directory
+          mkdir -p ../deploy/uploads
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: deploy
 
   deploy:
     runs-on: ubuntu-latest
