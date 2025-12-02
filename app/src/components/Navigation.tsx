@@ -37,7 +37,7 @@ export const Navigation: React.FC = () => {
                       : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
                   }`}
                 >
-                  Shop
+                  Tienda
                 </Link>
                 {isAuthenticated && (
                   <Link
@@ -48,7 +48,7 @@ export const Navigation: React.FC = () => {
                         : 'border-transparent text-green-100 hover:text-white hover:border-green-300'
                     }`}
                   >
-                    My Account
+                    Mi Cuenta
                   </Link>
                 )}
               </div>
@@ -63,7 +63,7 @@ export const Navigation: React.FC = () => {
                   onClick={() => setCartDrawerOpen(true)}
                 >
                   <ShoppingCart className="h-5 w-5" />
-                  <span className="ml-2 hidden sm:inline">Cart</span>
+                  <span className="ml-2 hidden sm:inline">Carrito</span>
                 {totalCartItems > 0 && (
                   <span className="w-5 h-5 cart-badge-red text-white rounded-full text-xs font-bold leading-none flex items-center justify-center border-2 border-white shadow-md">
                     {totalCartItems}
@@ -90,7 +90,7 @@ export const Navigation: React.FC = () => {
                     }}
                   >
                     <UserIcon className="h-4 w-4 mr-2" />
-                    Sign In
+                    Iniciar Sesión
                   </Button>
                   <Button
                     size="sm"
@@ -100,7 +100,7 @@ export const Navigation: React.FC = () => {
                       setShowAuthModal(true)
                     }}
                   >
-                    Sign Up
+                    Registrarse
                   </Button>
                 </div>
               )}

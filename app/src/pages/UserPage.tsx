@@ -92,7 +92,7 @@ export const UserPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
-      toast.error('Failed to load order history');
+      toast.error('Error al cargar el historial de pedidos');
     } finally {
       setOrdersLoading(false);
     }
@@ -109,15 +109,15 @@ export const UserPage: React.FC = () => {
       const response = await apiClient.put('/users/profile', profileData);
       
       if (response.success) {
-        toast.success('Profile updated successfully');
+        toast.success('Perfil actualizado exitosamente');
         setIsEditingProfile(false);
         await refreshUser(); // Refresh user data in context
       } else {
-        toast.error('Failed to update profile');
+        toast.error('Error al actualizar el perfil');
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
-      toast.error('Failed to update profile');
+      toast.error('Error al actualizar el perfil');
     } finally {
       setProfileSaving(false);
     }
@@ -137,7 +137,7 @@ export const UserPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -175,8 +175,8 @@ export const UserPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Loading...</h3>
-              <p className="mt-1 text-sm text-gray-500">Verifying your account information.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">Cargando...</h3>
+              <p className="mt-1 text-sm text-gray-500">Verificando la información de tu cuenta.</p>
             </div>
           </CardContent>
         </Card>
@@ -191,8 +191,8 @@ export const UserPage: React.FC = () => {
           <CardContent className="pt-6">
             <div className="text-center">
               <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Not logged in</h3>
-              <p className="mt-1 text-sm text-gray-500">Please log in to view your profile.</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No has iniciado sesión</h3>
+              <p className="mt-1 text-sm text-gray-500">Por favor inicia sesión para ver tu perfil.</p>
             </div>
           </CardContent>
         </Card>
@@ -205,9 +205,9 @@ export const UserPage: React.FC = () => {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Mi Cuenta</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your profile information and view your order history
+            Administra tu información de perfil y consulta tu historial de pedidos
           </p>
         </div>
 
@@ -215,11 +215,11 @@ export const UserPage: React.FC = () => {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
-              Profile
+              Perfil
             </TabsTrigger>
             <TabsTrigger value="orders" className="flex items-center gap-2">
               <ShoppingBagIcon className="h-4 w-4" />
-              Order History
+              Historial de Pedidos
             </TabsTrigger>
           </TabsList>
 
@@ -229,9 +229,9 @@ export const UserPage: React.FC = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Personal Information</CardTitle>
+                    <CardTitle>Información Personal</CardTitle>
                     <CardDescription>
-                      Update your personal details and contact information
+                      Actualiza tus datos personales e información de contacto
                     </CardDescription>
                   </div>
                   {!isEditingProfile && (
@@ -241,7 +241,7 @@ export const UserPage: React.FC = () => {
                       onClick={() => setIsEditingProfile(true)}
                     >
                       <EditIcon className="h-4 w-4 mr-2" />
-                      Edit
+                      Editar
                     </Button>
                   )}
                 </div>
@@ -249,7 +249,7 @@ export const UserPage: React.FC = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">Nombre</Label>
                     <Input
                       id="firstName"
                       value={profileData.firstName}
@@ -258,7 +258,7 @@ export const UserPage: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Apellido</Label>
                     <Input
                       id="lastName"
                       value={profileData.lastName}
@@ -269,7 +269,7 @@ export const UserPage: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">Correo Electrónico</Label>
                   <Input
                     id="email"
                     type="email"
@@ -280,14 +280,14 @@ export const UserPage: React.FC = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone">Número de Teléfono</Label>
                   <Input
                     id="phone"
                     type="tel"
                     value={profileData.phone}
                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                     disabled={!isEditingProfile}
-                    placeholder="Optional"
+                    placeholder="Opcional"
                   />
                 </div>
 
@@ -298,7 +298,7 @@ export const UserPage: React.FC = () => {
                       disabled={profileSaving}
                     >
                       <SaveIcon className="h-4 w-4 mr-2" />
-                      {profileSaving ? 'Saving...' : 'Save Changes'}
+                      {profileSaving ? 'Guardando...' : 'Guardar Cambios'}
                     </Button>
                     <Button 
                       variant="outline" 
@@ -306,7 +306,7 @@ export const UserPage: React.FC = () => {
                       disabled={profileSaving}
                     >
                       <XIcon className="h-4 w-4 mr-2" />
-                      Cancel
+                      Cancelar
                     </Button>
                   </div>
                 )}
@@ -318,23 +318,23 @@ export const UserPage: React.FC = () => {
           <TabsContent value="orders" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order History</CardTitle>
+                <CardTitle>Historial de Pedidos</CardTitle>
                 <CardDescription>
-                  View all your past orders and their details
+                  Consulta todos tus pedidos anteriores y sus detalles
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {ordersLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                    <p className="mt-2 text-sm text-gray-500">Loading orders...</p>
+                    <p className="mt-2 text-sm text-gray-500">Cargando pedidos...</p>
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-8">
                     <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No orders yet</h3>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">Aún no hay pedidos</h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      Start shopping to see your orders here.
+                      Comienza a comprar para ver tus pedidos aquí.
                     </p>
                   </div>
                 ) : (
@@ -345,7 +345,7 @@ export const UserPage: React.FC = () => {
                           <div className="flex items-start justify-between mb-4">
                             <div>
                               <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-semibold">Order #{order.id.slice(-8)}</h3>
+                                <h3 className="font-semibold">Pedido #{order.id.slice(-8)}</h3>
                                 <Badge className={getStatusColor(order.status)}>
                                   {order.status.replace('_', ' ')}
                                 </Badge>
@@ -371,7 +371,7 @@ export const UserPage: React.FC = () => {
 
                           {/* Order Items */}
                           <div className="space-y-3">
-                            <h4 className="font-medium">Items Ordered:</h4>
+                            <h4 className="font-medium">Artículos Pedidos:</h4>
                             {order.items.map((item) => (
                               <div key={item.id} className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
@@ -403,7 +403,7 @@ export const UserPage: React.FC = () => {
                               <span>${order.subtotal.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                              <span>Delivery Fee:</span>
+                              <span>Tarifa de Envío:</span>
                               <span>${order.deliveryFee.toFixed(2)}</span>
                             </div>
                             <Separator />
@@ -418,7 +418,7 @@ export const UserPage: React.FC = () => {
                             <>
                               <Separator className="my-4" />
                               <div>
-                                <h4 className="font-medium mb-2">Delivery Address:</h4>
+                                <h4 className="font-medium mb-2">Dirección de Entrega:</h4>
                                 <p className="text-sm text-gray-600">
                                   {order.deliveryAddress.street}<br />
                                   {order.deliveryAddress.city}, {order.deliveryAddress.state} {order.deliveryAddress.zipCode}
