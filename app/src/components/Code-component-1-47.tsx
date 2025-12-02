@@ -45,7 +45,7 @@ export function ProductCard({ product, quantity, onAddToCart, onQuantityChange }
         {quantity === 0 ? (
           <Button 
             onClick={() => onAddToCart(product, 1)}
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full bg-green-800 hover:bg-green-900"
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
             Agregar al Carrito

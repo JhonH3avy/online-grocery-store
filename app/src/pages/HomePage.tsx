@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Badge } from '../components/ui/badge'
 import { Separator } from '../components/ui/separator'
-import { ShoppingCart, Leaf, Apple, Carrot, Flower, Sparkles, AlertCircle, Wifi, WifiOff, RefreshCw, UserIcon } from 'lucide-react'
+import { ShoppingCart, Leaf, Apple, Carrot, Milk, Coffee, AlertCircle, Wifi, WifiOff, RefreshCw, UserIcon, Salad } from 'lucide-react'
 import { ProductGrid } from '../components/ProductGrid'
 import { CartDrawer } from '../components/CartDrawer'
 import { Product } from '../components/ProductCard'
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { config } from '../config'
 import { useAuth } from '../hooks/useAuth'
+import { useCart } from '../hooks/useCart'
 
 // API Services
 import { healthCheck } from '../services/api'
@@ -23,13 +24,12 @@ import { AuthModal } from '../components/auth'
 // HomePage component
 export function HomePage() {
   const { user, isAuthenticated } = useAuth()
-  const [cartItems, setCartItems] = useState<Record<string, number>>({})
+  const { cartItems, setCartItems, cartDrawerOpen, setCartDrawerOpen } = useCart()
   const [cart, setCart] = useState<any>(null)
   const [cartProducts, setCartProducts] = useState<Product[]>([]) // Products in cart from all categories
   const [weightUnit, setWeightUnit] = useState<'kg' | 'lb'>('kg')
   const [activeCategory, setActiveCategory] = useState('')
   const [activeSubcategory, setActiveSubcategory] = useState('')
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [hasInitializedCart, setHasInitializedCart] = useState(false)
@@ -453,20 +453,22 @@ export function HomePage() {
 
   const categoryIcon = {
     frutas: Apple,
-    vegetables: Carrot,
-    verduras: Carrot,
-    dairy: Flower,
-    lacteos: Flower,
-    beverages: Sparkles,
-    bebidas: Sparkles
+    vegetables: Salad,
+    verduras: Salad,
+    vegetales: Salad,
+    dairy: Milk,
+    lacteos: Milk,
+    lácteos: Milk,
+    beverages: Coffee,
+    bebidas: Coffee
   }  // Show loading screen while initializing
   if (serverStatus === 'checking' && categoriesLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-12 w-12 text-green-600 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Connecting to server...</h2>
-          <p className="text-gray-600">Loading your grocery store</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Conectando al servidor...</h2>
+          <p className="text-gray-600">Cargando tienda</p>
         </div>
       </div>
     )
@@ -478,13 +480,13 @@ export function HomePage() {
       <div className="min-h-screen bg-gradient-to-br from-red-50 via-orange-50 to-white flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <WifiOff className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Server Unavailable</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Servidor no disponible</h2>
           <p className="text-gray-600 mb-6">
-            Unable to connect to the grocery store server. Please check your internet connection and try again.
+            No se puede conectar al servidor de la tienda. Por favor, verifica tu conexión a internet e intenta nuevamente.
           </p>
-          <Button onClick={retryConnection} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={retryConnection} className="bg-green-800 hover:bg-green-900">
             <RefreshCw className="h-4 w-4 mr-2" />
-            Retry Connection
+            Reintentar conexión
           </Button>
         </div>
       </div>
@@ -499,7 +501,7 @@ export function HomePage() {
         <Alert className="m-4 border-green-200 bg-green-50">
           <Wifi className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Connected to server - All data is live from database
+            Conectado al servidor - Todos los datos están en vivo desde la base de datos
           </AlertDescription>
         </Alert>
       )}
@@ -509,7 +511,7 @@ export function HomePage() {
         <Alert className="m-4 border-blue-200 bg-blue-50">
           <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
           <AlertDescription className="text-blue-800">
-            Loading fresh data from server...
+            Cargando datos frescos desde el servidor...
           </AlertDescription>
         </Alert>
       )}
@@ -525,7 +527,7 @@ export function HomePage() {
               className="p-0 h-auto ml-2 text-red-600 underline"
               onClick={loadCategories}
             >
-              Retry
+              Reintentar
             </Button>
           </AlertDescription>
         </Alert>
@@ -541,7 +543,7 @@ export function HomePage() {
               className="p-0 h-auto ml-2 text-red-600 underline"
               onClick={() => loadProducts()}
             >
-              Retry
+              Reintentar
             </Button>
           </AlertDescription>
         </Alert>
@@ -550,7 +552,12 @@ export function HomePage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">
-          <h2 className="bg-gradient-to-r from-green-700 to-orange-600 bg-clip-text text-transparent mb-3">Productos Frescos y Naturales</h2>
+          <h1 className="homepage-main-title bg-gradient-to-r from-green-600 to-orange-500 bg-clip-text text-transparent mb-6">
+            FreshMarket
+          </h1>
+          <h2 className="homepage-subtitle font-semibold bg-gradient-to-r from-green-700 to-orange-600 bg-clip-text text-transparent mb-3">
+            Productos Frescos y Naturales
+          </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Descubre nuestra selección de frutas, verduras, lácteos y bebidas. 
             Todo fresco, natural y entregado directamente a tu puerta.
@@ -570,11 +577,11 @@ export function HomePage() {
             {/* Category Tabs */}
             <TabsList className="grid w-full grid-cols-4 mb-8">
               {categories.slice(0, 4).map((category) => {
-                const Icon = categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Sparkles
+                const Icon = categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Coffee
                 return (
-                  <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
+                  <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2 text-base">
                     <Icon className="w-4 h-4" />
-                    <span className="hidden sm:inline">{category.name}</span>
+                    <span className="hidden sm:inline font-medium">{category.name}</span>
                   </TabsTrigger>
                 )
               })}
@@ -586,7 +593,7 @@ export function HomePage() {
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-orange-100">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-orange-100 rounded-full flex items-center justify-center">
-                      {React.createElement(categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Sparkles, {
+                      {React.createElement(categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Coffee, {
                         className: "w-5 h-5 text-green-600"
                       })}
                     </div>

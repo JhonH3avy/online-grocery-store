@@ -152,7 +152,7 @@ export function CartDrawer({
                 <span>Total:</span>
                 <span className="text-green-600">${totalPrice.toFixed(2)}</span>
               </div>
-              <Button onClick={onCheckout} className="w-full bg-green-600 hover:bg-green-700">
+              <Button onClick={onCheckout} className="w-full bg-green-800 hover:bg-green-900">
                 Proceder al Pago
               </Button>
             </div>

@@ -60,7 +60,7 @@ export function CartDrawer({
         </SheetHeader>
 
         <div className="py-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 p-4">
             <span>Unidad de peso:</span>
             <Select value={weightUnit} onValueChange={(value: 'kg' | 'lb') => onWeightUnitChange(value)}>
               <SelectTrigger className="w-20">
@@ -124,7 +124,7 @@ export function CartDrawer({
                   </div>
 
                   <Button
-                    size="sm"
+                    size="lg"
                     variant="ghost"
                     onClick={() => onRemoveItem(productId)}
                     className="text-red-500 hover:text-red-700"
@@ -144,7 +144,7 @@ export function CartDrawer({
                 <span>Total:</span>
                 <span className="text-orange-600">${totalPrice.toLocaleString('es-CO')}</span>
               </div>
-              <Button onClick={onCheckout} className="w-full bg-green-600 hover:bg-green-700">
+              <Button onClick={onCheckout} className="w-full bg-green-800 hover:bg-green-900">
                 Proceder al Pago
               </Button>
             </div>

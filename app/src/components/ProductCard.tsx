@@ -35,6 +35,7 @@ export function ProductCard({ product, quantity, onAddToCart, onQuantityChange }
       <CardContent className="flex-1 p-4">
         <h3 className="mb-2">{product.name}</h3>
         <p className="text-muted-foreground mb-3">{product.description}</p>
+        <span className="text-sm">Selecciona el peso que deseas comprar</span>
         <div className="flex items-baseline gap-1">
           <span className="text-orange-600">${product.price.toLocaleString('es-CO')}</span>
           <span className="text-sm text-muted-foreground">/ {product.unit}</span>
@@ -45,7 +46,7 @@ export function ProductCard({ product, quantity, onAddToCart, onQuantityChange }
         {quantity === 0 ? (
           <Button 
             onClick={() => onAddToCart(product, 1)}
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full bg-green-800 hover:bg-green-900"
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
             Agregar al Carrito

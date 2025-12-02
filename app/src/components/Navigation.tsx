@@ -1,32 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useCart } from '../hooks/useCart';
 import { Button } from './ui/button';
 import { UserProfile, AuthModal } from './auth';
 import { ShoppingCart, Leaf, UserIcon } from 'lucide-react';
 
-interface NavigationProps {
-  cartItems?: Record<string, number>;
-  products?: any[];
-  onCartDrawerOpen?: () => void;
-}
-
-export const Navigation: React.FC<NavigationProps> = ({ 
-  cartItems = {}, 
-  products = [],
-  onCartDrawerOpen
-}) => {
+export const Navigation: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const { getTotalItems, setCartDrawerOpen } = useCart();
   const location = useLocation();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
 
-  // Calculate total items in cart
-  const totalCartItems = Object.values(cartItems).reduce((sum: number, quantity: unknown) => sum + (quantity as number), 0);
+  // Get total items in cart
+  const totalCartItems = getTotalItems();
 
   return (
     <>
-      <nav className="bg-green-600 shadow-sm">
+      <nav className="bg-green-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             {/* Logo and main navigation */}
@@ -64,17 +56,16 @@ export const Navigation: React.FC<NavigationProps> = ({
 
             {/* Right side - Cart and auth */}
             <div className="flex items-center gap-4">
-              {/* Cart button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/10 relative"
-                onClick={onCartDrawerOpen || (() => {})}
-              >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="ml-2 hidden sm:inline">Cart</span>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  className="text-white hover:bg-white/10"
+                  onClick={() => setCartDrawerOpen(true)}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="ml-2 hidden sm:inline">Cart</span>
                 {totalCartItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-orange-500 text-white rounded-full text-xs w-5 h-5 flex items-center justify-center">
+                  <span className="w-5 h-5 cart-badge-red text-white rounded-full text-xs font-bold leading-none flex items-center justify-center border-2 border-white shadow-md">
                     {totalCartItems}
                   </span>
                 )}
@@ -91,7 +82,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="md"
                     className="text-white hover:bg-white/10"
                     onClick={() => {
                       setAuthModalMode('login')
