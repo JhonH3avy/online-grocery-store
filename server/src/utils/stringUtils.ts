@@ -1,6 +1,4 @@
-/**
- * String utility functions for handling Spanish text normalization
- */
+// String utility functions for handling Spanish text normalization
 
 /**
  * Normalize a string by removing accents and converting to lowercase

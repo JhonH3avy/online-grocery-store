@@ -1,6 +1,4 @@
-// Simple SQL query builders for common operations
-// No external dependencies, just pure JavaScript/TypeScript
-
+// Compatibility layer for legacy query builder - minimal implementation
 export class QueryBuilder {
   static select(table: string, columns: string[] = ['*']): SelectQuery {
     return new SelectQuery(table, columns);
@@ -44,8 +42,8 @@ class SelectQuery {
   }
 
   whereIn(column: string, values: any[]): SelectQuery {
-    const placeholders = values.map(() => {
-      this.params.push(values[this.params.length]);
+    const placeholders = values.map((val) => {
+      this.params.push(val);
       return `$${this.params.length}`;
     }).join(', ');
     this.whereConditions.push(`${column} IN (${placeholders})`);
@@ -71,19 +69,19 @@ class SelectQuery {
 
   build(): { query: string; params: any[] } {
     let query = `SELECT ${this.columns.join(', ')} FROM ${this.table}`;
-    
+
     if (this.whereConditions.length > 0) {
       query += ` WHERE ${this.whereConditions.join(' AND ')}`;
     }
-    
+
     if (this.orderByClause) {
       query += ` ${this.orderByClause}`;
     }
-    
+
     if (this.limitClause) {
       query += ` ${this.limitClause}`;
     }
-    
+
     if (this.offsetClause) {
       query += ` ${this.offsetClause}`;
     }
@@ -117,7 +115,7 @@ class InsertQuery {
     const placeholders = columns.map((_, index) => `$${index + 1}`);
 
     let query = `INSERT INTO ${this.table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
-    
+
     if (this.returningColumns.length > 0) {
       query += ` RETURNING ${this.returningColumns.join(', ')}`;
     }
@@ -160,12 +158,12 @@ class UpdateQuery {
   build(): { query: string; params: any[] } {
     const setColumns = Object.keys(this.data);
     const setValues = Object.values(this.data);
-    
+
     // Add SET values to params first
     const setClause = setColumns.map((column, index) => {
       return `${column} = $${index + 1}`;
     }).join(', ');
-    
+
     // Adjust WHERE condition parameter numbers
     const adjustedWhereConditions = this.whereConditions.map(condition => {
       return condition.replace(/\$(\d+)/g, (match, num) => {
@@ -174,11 +172,11 @@ class UpdateQuery {
     });
 
     let query = `UPDATE ${this.table} SET ${setClause}`;
-    
+
     if (adjustedWhereConditions.length > 0) {
       query += ` WHERE ${adjustedWhereConditions.join(' AND ')}`;
     }
-    
+
     if (this.returningColumns.length > 0) {
       query += ` RETURNING ${this.returningColumns.join(', ')}`;
     }
@@ -214,11 +212,11 @@ class DeleteQuery {
 
   build(): { query: string; params: any[] } {
     let query = `DELETE FROM ${this.table}`;
-    
+
     if (this.whereConditions.length > 0) {
       query += ` WHERE ${this.whereConditions.join(' AND ')}`;
     }
-    
+
     if (this.returningColumns.length > 0) {
       query += ` RETURNING ${this.returningColumns.join(', ')}`;
     }

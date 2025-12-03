@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ProductModel } from '../models/Product';
+import { prisma } from '../services/prisma';
 
 const router = Router();
 
@@ -180,18 +181,63 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    const product = await ProductModel.findById(id);
+    // Fetch product with relations using Prisma
+    const product = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        subcategory: true,
+        inventory: true,
+        reviews: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+              }
+            }
+          }
+        }
+      }
+    });
 
-    if (!product) {
+    if (!product || !product.isActive) {
       return res.status(404).json({
         success: false,
         error: 'Product not found'
       });
     }
 
+    // Transform product data to include enhanced fields
+    const transformedProduct = {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      unit: product.unit,
+      imageUrl: product.imageUrl,
+      categoryId: product.categoryId,
+      subcategoryId: product.subcategoryId,
+      featured: product.isFeatured,
+      stock: product.inventory?.quantity || 0,
+      available: (product.inventory?.quantity || 0) > 0 && product.isActive,
+      isActive: product.isActive,
+      reviews: product.reviews.map((review: any) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        userName: `${review.user.firstName} ${review.user.lastName}`,
+        createdAt: review.createdAt
+      })),
+      avgRating: product.reviews.length > 0 
+        ? product.reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / product.reviews.length
+        : 0,
+      reviewCount: product.reviews.length
+    };
+
     return res.status(200).json({
       success: true,
-      data: product,
+      data: transformedProduct,
       message: 'Product retrieved successfully'
     });
   } catch (error) {

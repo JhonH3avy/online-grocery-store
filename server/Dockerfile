@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Install OpenSSL for Prisma (Alpine 3.17+ uses openssl3 by default)
+RUN apk add --no-cache openssl
+
 # Copy package files first for better caching
 COPY package*.json ./
 
@@ -10,6 +13,9 @@ RUN npm ci --only=production --no-audit --no-fund
 
 # Copy source code
 COPY . .
+
+# Generate Prisma Client
+RUN npx prisma generate
 
 # Build the TypeScript application
 RUN npm run build

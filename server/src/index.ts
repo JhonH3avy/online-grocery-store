@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
+import { prisma, checkDatabaseConnection, disconnectPrisma } from './services/prisma';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -88,7 +89,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   const corsOrigins = process.env.CORS_ORIGINS 
     ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()).join(', ')
     : 'http://localhost:3000';
@@ -96,6 +97,27 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS enabled for: ${corsOrigins}`);
+  
+  // Check database connection
+  const dbConnected = await checkDatabaseConnection();
+  if (dbConnected) {
+    console.log('✅ Database connection successful');
+  } else {
+    console.log('❌ Database connection failed');
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  await disconnectPrisma();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  await disconnectPrisma();
+  process.exit(0);
 });
 
 export default app;

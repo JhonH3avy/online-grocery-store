@@ -1,0 +1,237 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and customer data
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  phone     String?
+  role      UserRole @default(CUSTOMER)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  addresses  Address[]
+  cartItems  CartItem[]
+  orders     Order[]
+  reviews    Review[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+// Address model for delivery addresses
+model Address {
+  id        String  @id @default(uuid())
+  userId    String  @map("user_id")
+  street    String
+  city      String
+  state     String
+  zipCode   String  @map("zip_code")
+  country   String  @default("Colombia")
+  isDefault Boolean @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("addresses")
+}
+
+// Category model for product organization
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  subcategories Subcategory[]
+  products      Product[]
+
+  @@map("categories")
+}
+
+// Subcategory model for product sub-organization
+model Subcategory {
+  id         String   @id @default(uuid())
+  name       String
+  slug       String
+  categoryId String   @map("category_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([categoryId, slug])
+  @@map("subcategories")
+}
+
+// Product model for the grocery items
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  unit          String   // kg, lb, piece, etc.
+  imageUrl      String?  @map("image_url")
+  categoryId    String   @map("category_id")
+  subcategoryId String   @map("subcategory_id")
+  isActive      Boolean  @default(true) @map("is_active")
+  isFeatured    Boolean  @default(false) @map("is_featured")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  category      Category     @relation(fields: [categoryId], references: [id])
+  subcategory   Subcategory  @relation(fields: [subcategoryId], references: [id])
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  inventory     Inventory?
+  reviews       Review[]
+
+  @@map("products")
+}
+
+// Inventory model for stock management
+model Inventory {
+  id          String   @id @default(uuid())
+  productId   String   @unique @map("product_id")
+  quantity    Int      @default(0)
+  lowStock    Int      @default(10) @map("low_stock") // Alert threshold
+  lastUpdated DateTime @default(now()) @map("last_updated")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+// Cart Item model for shopping cart
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("cart_items")
+}
+
+// Order model for purchase orders
+model Order {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  deliveryAddressId String      @map("delivery_address_id")
+  status            OrderStatus @default(PENDING)
+  subtotal          Decimal     @db.Decimal(10, 2)
+  deliveryFee       Decimal     @default(0) @db.Decimal(10, 2) @map("delivery_fee")
+  total             Decimal     @db.Decimal(10, 2)
+  paymentMethod     String      @map("payment_method")
+  paymentStatus     PaymentStatus @default(PENDING) @map("payment_status")
+  notes             String?
+  estimatedDelivery DateTime?   @map("estimated_delivery")
+  deliveredAt       DateTime?   @map("delivered_at")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id])
+  deliveryAddress Address     @relation(fields: [deliveryAddressId], references: [id])
+  orderItems      OrderItem[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY_FOR_DELIVERY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// Order Item model for products in orders
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String  @map("order_id")
+  productId String  @map("product_id")
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+// Review model for product reviews
+model Review {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  productId String   @map("product_id")
+  rating    Int      // 1-5 stars
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+// Contact form submissions
+model ContactSubmission {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_submissions")
+}

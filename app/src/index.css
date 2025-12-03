@@ -101,7 +101,19 @@
     --text-lg: 1.125rem;
     --text-lg--line-height: calc(1.75 / 1.125);
     --text-xl: 1.25rem;
+    --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
+    --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
+    --text-4xl: 2.25rem;
+    --text-4xl--line-height: calc(2.5 / 2.25);
+    --text-5xl: 3rem;
+    --text-5xl--line-height: calc(3 / 3);
+    --text-6xl: 3.75rem;
+    --text-6xl--line-height: calc(3.75 / 3.75);
+    --text-7xl: 4.5rem;
+    --text-7xl--line-height: calc(4.5 / 4.5);
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
@@ -140,6 +152,7 @@
   }
 
   html, :host {
+    text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
     line-height: 1.5;
@@ -4860,4 +4873,38 @@ html {
   20%, 50% {
     opacity: 0;
   }
+}
+
+/* Custom large text classes for homepage titles */
+.homepage-main-title {
+  font-size: var(--text-6xl);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+@media (min-width: 768px) {
+  .homepage-main-title {
+    font-size: var(--text-7xl);
+  }
+}
+
+.homepage-subtitle {
+  font-size: var(--text-3xl);
+  line-height: 1.2;
+}
+
+@media (min-width: 768px) {
+  .homepage-subtitle {
+    font-size: var(--text-4xl);
+  }
+}
+
+/* Cart badge red background */
+.cart-badge-red {
+  background-color: var(--color-red-500) !important;
+}
+
+/* Fallback for cart badge if CSS variable doesn't work */
+.cart-badge-red {
+  background-color: #dc2626 !important;
 }

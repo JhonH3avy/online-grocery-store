@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Badge } from '../components/ui/badge'
 import { Separator } from '../components/ui/separator'
-import { ShoppingCart, Leaf, Apple, Carrot, Flower, Sparkles, AlertCircle, Wifi, WifiOff, RefreshCw, UserIcon } from 'lucide-react'
+import { ShoppingCart, Leaf, Apple, Carrot, Milk, Coffee, AlertCircle, Wifi, WifiOff, RefreshCw, UserIcon, Salad } from 'lucide-react'
 import { ProductGrid } from '../components/ProductGrid'
 import { CartDrawer } from '../components/CartDrawer'
 import { Product } from '../components/ProductCard'
@@ -168,12 +168,14 @@ export function HomePage() {
 
   const categoryIcon = {
     frutas: Apple,
-    vegetables: Carrot,
-    verduras: Carrot,
-    dairy: Flower,
-    lacteos: Flower,
-    beverages: Sparkles,
-    bebidas: Sparkles
+    vegetables: Salad,
+    verduras: Salad,
+    vegetales: Salad,
+    dairy: Milk,
+    lacteos: Milk,
+    lácteos: Milk,
+    beverages: Coffee,
+    bebidas: Coffee
   }  // Show loading screen while initializing
   if (serverStatus === 'checking' && categoriesLoading) {
     return (
@@ -265,7 +267,12 @@ export function HomePage() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 text-center">
-          <h2 className="bg-gradient-to-r from-green-700 to-orange-600 bg-clip-text text-transparent mb-3">Productos Frescos y Naturales</h2>
+          <h1 className="homepage-main-title bg-gradient-to-r from-green-600 to-orange-500 bg-clip-text text-transparent mb-6">
+            FreshMarket
+          </h1>
+          <h2 className="homepage-subtitle font-semibold bg-gradient-to-r from-green-700 to-orange-600 bg-clip-text text-transparent mb-3">
+            Productos Frescos y Naturales
+          </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
             Descubre nuestra selección de frutas, verduras, lácteos y bebidas. 
             Todo fresco, natural y entregado directamente a tu puerta.
@@ -285,7 +292,7 @@ export function HomePage() {
             {/* Category Tabs */}
             <TabsList className="grid w-full grid-cols-4 mb-8">
               {categories.slice(0, 4).map((category) => {
-                const Icon = categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Sparkles
+                const Icon = categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Coffee
                 return (
                   <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
                     <Icon className="w-4 h-4" />
@@ -301,7 +308,7 @@ export function HomePage() {
                 <div className="bg-white rounded-lg p-6 shadow-sm border border-orange-100">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-8 h-8 bg-gradient-to-r from-green-100 to-orange-100 rounded-full flex items-center justify-center">
-                      {React.createElement(categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Sparkles, {
+                      {React.createElement(categoryIcon[category.name.toLowerCase() as keyof typeof categoryIcon] || Coffee, {
                         className: "w-5 h-5 text-green-600"
                       })}
                     </div>
