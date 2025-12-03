@@ -15,6 +15,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback'
 import { cartService } from '../services/cartService'
 import { useAuth } from '../hooks/useAuth'
 import { apiClient } from '../services/api'
+import { apiConfig } from '../config'
 
 interface Address {
   id: string
@@ -126,7 +127,7 @@ export function CheckoutModal({
     console.log('Loading addresses with token:', token.substring(0, 20) + '...')
     setLoadingAddresses(true)
     try {
-      const response = await fetch('/api/users/addresses', {
+      const response = await fetch(`${apiConfig.baseUrl}/users/addresses`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -180,8 +181,8 @@ export function CheckoutModal({
     setLoading(true)
     try {
       const url = editingAddress 
-        ? `/api/users/addresses/${editingAddress.id}`
-        : '/api/users/addresses'
+        ? `${apiConfig.baseUrl}/users/addresses/${editingAddress.id}`
+        : `${apiConfig.baseUrl}/users/addresses`
       
       const method = editingAddress ? 'PUT' : 'POST'
       

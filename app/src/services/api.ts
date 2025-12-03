@@ -3,6 +3,11 @@ import { config } from '../config';
 // API Configuration - now using centralized config
 const API_BASE_URL = config.api.baseUrl;
 
+// Validate API configuration at startup
+if (!API_BASE_URL) {
+  console.error('API_BASE_URL is not configured. Please set VITE_API_BASE_URL in your .env file');
+}
+
 // API Response Types
 export interface ApiResponse<T = any> {
   success: boolean;

@@ -38,7 +38,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:password@postgres:5432/grocery_store_db?schema=public
-      FRONTEND_URL: http://frontend:80
+      CORS_ORIGINS: http://localhost:3000,http://frontend:80
       VITE_API_BASE_URL: http://localhost:5000/api
       VITE_MOCK_API: "false"
       PROD: "false"
@@ -58,6 +58,12 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5000/api
+        VITE_APP_NAME: "Online Grocery Store"
+        VITE_APP_VERSION: "1.0.0"
+        VITE_ENABLE_ANALYTICS: "false"
+        VITE_ENABLE_DEBUG: "true"
     container_name: grocery-app
     restart: unless-stopped
     ports:
