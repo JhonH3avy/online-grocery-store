@@ -21,10 +21,8 @@ function getMigrationName(index) {
 const migrations = [
   // Migration 001: Create users table
   `
-  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-  
   CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
@@ -43,7 +41,7 @@ const migrations = [
   // Migration 002: Create categories table
   `
   CREATE TABLE IF NOT EXISTS categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) UNIQUE NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -56,7 +54,7 @@ const migrations = [
   // Migration 003: Create subcategories table
   `
   CREATE TABLE IF NOT EXISTS subcategories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) NOT NULL,
     category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
@@ -71,7 +69,7 @@ const migrations = [
   // Migration 004: Create products table
   `
   CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
@@ -94,7 +92,7 @@ const migrations = [
   // Migration 005: Create addresses table
   `
   CREATE TABLE IF NOT EXISTS addresses (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     street VARCHAR(200) NOT NULL,
     city VARCHAR(100) NOT NULL,
@@ -113,7 +111,7 @@ const migrations = [
   // Migration 006: Create cart_items table
   `
   CREATE TABLE IF NOT EXISTS cart_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
@@ -128,7 +126,7 @@ const migrations = [
   // Migration 007: Create orders table
   `
   CREATE TABLE IF NOT EXISTS orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id),
     delivery_address_id UUID NOT NULL REFERENCES addresses(id),
     status VARCHAR(30) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CONFIRMED', 'PREPARING', 'READY_FOR_DELIVERY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED')),
@@ -151,7 +149,7 @@ const migrations = [
   // Migration 008: Create order_items table
   `
   CREATE TABLE IF NOT EXISTS order_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id),
     quantity INTEGER NOT NULL CHECK (quantity > 0),
@@ -165,7 +163,7 @@ const migrations = [
   // Migration 009: Create inventory table
   `
   CREATE TABLE IF NOT EXISTS inventory (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_id UUID UNIQUE NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     quantity INTEGER DEFAULT 0 CHECK (quantity >= 0),
     low_stock INTEGER DEFAULT 10 CHECK (low_stock >= 0),
@@ -178,7 +176,7 @@ const migrations = [
   // Migration 010: Create reviews table
   `
   CREATE TABLE IF NOT EXISTS reviews (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
@@ -195,7 +193,7 @@ const migrations = [
   // Migration 011: Create contact_submissions table
   `
   CREATE TABLE IF NOT EXISTS contact_submissions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL,
     subject VARCHAR(200) NOT NULL,
