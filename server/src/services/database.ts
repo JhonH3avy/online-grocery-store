@@ -4,7 +4,28 @@ import type { PrismaClient } from '@prisma/client';
 
 // Helper function for queries
 export const query = async (text: string, params?: any[]): Promise<any> => {
-  const result = await prisma.$queryRawUnsafe(text, ...(params || []));
+  // If the provided SQL contains multiple statements, split and execute them
+  // individually. Some Postgres drivers disallow sending multiple statements
+  // in a single prepared statement, which causes the "cannot insert multiple
+  // commands into a prepared statement" error. Splitting avoids that.
+  const statements = text
+    .split(';')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (statements.length > 1) {
+    let lastResult: any;
+    for (const stmt of statements) {
+      // Use executeRawUnsafe for statements that don't return rows
+      lastResult = await prisma.$executeRawUnsafe(stmt);
+    }
+    return { rows: [] };
+  }
+
+  const result = params && params.length
+    ? await prisma.$queryRawUnsafe(text, ...(params || []))
+    : await prisma.$queryRawUnsafe(text);
+
   return { rows: Array.isArray(result) ? result : [result] };
 };
 
