@@ -45,6 +45,7 @@ jobs:
           cp -r node_modules ../deploy/
           cp package*.json ../deploy/
           cp -r scripts ../deploy/
+          cp -r .prisma ../deploy/
           # Create uploads directory
           mkdir -p ../deploy/uploads
 
