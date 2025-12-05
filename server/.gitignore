@@ -48,3 +48,6 @@ uploads/
 
 # Prisma
 prisma/migrations/
+
+# Generated Prisma Client
+src/prisma/

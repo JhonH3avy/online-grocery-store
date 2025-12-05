@@ -1,6 +1,6 @@
 // Compatibility layer for legacy code - wraps Prisma
 import { prisma } from './prisma';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../prisma/client';
 
 // Helper function for queries
 export const query = async (text: string, params?: any[]): Promise<any> => {
@@ -31,7 +31,7 @@ export const query = async (text: string, params?: any[]): Promise<any> => {
 
 // Helper function for transactions
 export const transaction = async (callback: (client: PrismaClient) => Promise<any>): Promise<any> => {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: any) => {
     return await callback(tx as PrismaClient);
   });
 };
