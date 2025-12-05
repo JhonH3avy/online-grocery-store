@@ -37,7 +37,7 @@ jobs:
         working-directory: server
         run: |
           # Remove dev dependencies for production
-          #npm prune --production
+          npm prune --production
           # Create a clean deployment directory
           mkdir -p ../deploy
           # Copy necessary files for deployment
