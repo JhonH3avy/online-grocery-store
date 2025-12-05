@@ -1,6 +1,6 @@
 // Compatibility layer for legacy code - wraps Prisma
 import { prisma } from './prisma';
-import type { PrismaClient } from '../prisma/client';
+import type { PrismaClient } from '@prisma/client';
 
 // Helper function for queries
 export const query = async (text: string, params?: any[]): Promise<any> => {

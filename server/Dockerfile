@@ -8,8 +8,8 @@ RUN apk add --no-cache openssl
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production --no-audit --no-fund
+# Install all dependencies (including dev) for build, skip postinstall
+RUN npm ci --no-audit --no-fund --ignore-scripts
 
 # Copy source code
 COPY . .
@@ -19,6 +19,9 @@ RUN npx prisma generate
 
 # Build the TypeScript application
 RUN npm run build
+
+# Prune dev dependencies for production image
+RUN npm prune --omit=dev
 
 # Create necessary directories
 RUN mkdir -p uploads && chmod 755 uploads
