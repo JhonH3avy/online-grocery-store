@@ -112,13 +112,35 @@ export class ProductModel {
     const { page = 1, limit = 10, categoryId, subcategoryId, categoryName, subcategoryName, featured, search, minPrice, maxPrice } = options;
     const offset = (page - 1) * limit;
 
+    // Filters applied to the main list query
     const filters: any[] = [eq(products.isActive, true)];
-    if (categoryId) filters.push(eq(products.categoryId, categoryId));
-    if (subcategoryId) filters.push(eq(products.subcategoryId, subcategoryId));
-    if (featured !== undefined) filters.push(eq(products.isFeatured, featured));
-    if (search) filters.push(ilike(products.name, `%${search}%`));
-    if (minPrice !== undefined) filters.push(gte(products.price as any, String(minPrice)));
-    if (maxPrice !== undefined) filters.push(lte(products.price as any, String(maxPrice)));
+    // Build a separate filter set for the count query to avoid referencing
+    // tables that aren't joined in that specific query (prevents FROM-clause errors)
+    const countFilters: any[] = [eq(products.isActive, true)];
+    if (categoryId) {
+      filters.push(eq(products.categoryId, categoryId));
+      countFilters.push(eq(products.categoryId, categoryId));
+    }
+    if (subcategoryId) {
+      filters.push(eq(products.subcategoryId, subcategoryId));
+      countFilters.push(eq(products.subcategoryId, subcategoryId));
+    }
+    if (featured !== undefined) {
+      filters.push(eq(products.isFeatured, featured));
+      countFilters.push(eq(products.isFeatured, featured));
+    }
+    if (search) {
+      filters.push(ilike(products.name, `%${search}%`));
+      countFilters.push(ilike(products.name, `%${search}%`));
+    }
+    if (minPrice !== undefined) {
+      filters.push(gte(products.price as any, String(minPrice)));
+      countFilters.push(gte(products.price as any, String(minPrice)));
+    }
+    if (maxPrice !== undefined) {
+      filters.push(lte(products.price as any, String(maxPrice)));
+      countFilters.push(lte(products.price as any, String(maxPrice)));
+    }
 
     // Name-based filters via joins
     let joined: any = db.select({ p: products }).from(products);
@@ -126,12 +148,22 @@ export class ProductModel {
       const normalizedCategoryName = normalizeString(categoryName);
       joined = joined.innerJoin(categories, eq(products.categoryId, categories.id));
       // emulate slug or normalized name match
-      filters.push(or(eq(categories.slug as any, categoryName), eq(categories.slug as any, normalizedCategoryName)) as any);
+      const categorySlugFilter = or(
+        eq(categories.slug as any, categoryName),
+        eq(categories.slug as any, normalizedCategoryName)
+      ) as any;
+      filters.push(categorySlugFilter);
+      countFilters.push(categorySlugFilter);
     }
     if (subcategoryName) {
       const normalizedSubcategoryName = normalizeString(subcategoryName);
       joined = joined.innerJoin(subcategories, eq(products.subcategoryId, subcategories.id));
-      filters.push(or(eq(subcategories.slug as any, subcategoryName), eq(subcategories.slug as any, normalizedSubcategoryName)) as any);
+      const subcategorySlugFilter = or(
+        eq(subcategories.slug as any, subcategoryName),
+        eq(subcategories.slug as any, normalizedSubcategoryName)
+      ) as any;
+      filters.push(subcategorySlugFilter);
+      countFilters.push(subcategorySlugFilter);
     }
 
     // Build count query with the same joins to avoid missing FROM references
@@ -149,7 +181,7 @@ export class ProductModel {
         .orderBy(desc(products.createdAt))
         .limit(limit)
         .offset(offset),
-      countQuery.where(and(...filters)),
+      countQuery.where(and(...countFilters)),
     ]);
 
     const list = rows.map((r: any) => r.p ?? r);
