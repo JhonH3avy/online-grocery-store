@@ -91,12 +91,4 @@ jobs:
           app-name: 'online-grocery-store-server'
           slot-name: 'Production'
           package: .
-
-      - name: Run database migrations on Azure
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        working-directory: server
-        run: |
-          npm ci --no-audit --no-fund --omit=dev
-          npx drizzle-kit migrate
           
