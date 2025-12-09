@@ -1,12 +1,15 @@
 import { Router } from 'express';
-import { checkDatabaseConnection } from '../services/prisma';
+import { getPool } from '../services/drizzle';
 
 const router = Router();
 
 // GET /api/health - Health check
 router.get('/', async (req, res) => {
   try {
-    const dbConnected = await checkDatabaseConnection();
+    const pool = getPool();
+    const client = await pool.connect();
+    const dbConnected = !!client;
+    client.release();
     
     res.status(200).json({
       success: true,

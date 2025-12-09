@@ -1,5 +1,6 @@
-import { query, transaction } from '../services/database';
-import { QueryBuilder } from '../services/queryBuilder';
+import { db } from '../services/drizzle';
+import { users } from '../db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 export interface User {
@@ -34,110 +35,82 @@ export interface UpdateUserData {
 
 export class UserModel {
   static async findById(id: string): Promise<User | null> {
-    const { query: sql, params } = QueryBuilder
-      .select('users')
-      .where('id', id)
-      .where('is_active = true')
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.id, id), eq(users.isActive, true)))
+      .limit(1);
+    return (rows[0] as any) || null;
   }
 
   static async findByEmail(email: string): Promise<User | null> {
-    const { query: sql, params } = QueryBuilder
-      .select('users')
-      .where('email', email)
-      .where('is_active = true')
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.email, email), eq(users.isActive, true)))
+      .limit(1);
+    return (rows[0] as any) || null;
   }
 
   static async create(userData: CreateUserData): Promise<User> {
     const hashedPassword = await bcrypt.hash(userData.password, 12);
-    
-    const { query: sql, params } = QueryBuilder
-      .insert('users')
+    const now = new Date();
+    const rows = await db
+      .insert(users)
       .values({
         id: crypto.randomUUID(),
         email: userData.email,
         password: hashedPassword,
-        first_name: userData.firstName,
-        last_name: userData.lastName,
-        phone: userData.phone,
-        role: userData.role || 'CUSTOMER',
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date()
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        phone: userData.phone ?? null,
+        role: (userData.role || 'CUSTOMER') as any,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
       })
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0];
+      .returning();
+    return rows[0] as any;
   }
 
   static async update(id: string, userData: UpdateUserData): Promise<User | null> {
-    const updateData: any = {
-      updated_at: new Date()
-    };
-
+    const updateData: any = { updatedAt: new Date() };
     if (userData.email) updateData.email = userData.email;
-    if (userData.firstName) updateData.first_name = userData.firstName;
-    if (userData.lastName) updateData.last_name = userData.lastName;
+    if (userData.firstName) updateData.firstName = userData.firstName;
+    if (userData.lastName) updateData.lastName = userData.lastName;
     if (userData.phone !== undefined) updateData.phone = userData.phone;
-    if (userData.isActive !== undefined) updateData.is_active = userData.isActive;
+    if (userData.isActive !== undefined) updateData.isActive = userData.isActive;
 
-    const { query: sql, params } = QueryBuilder
-      .update('users')
+    const rows = await db
+      .update(users)
       .set(updateData)
-      .where('id', id)
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+      .where(eq(users.id, id))
+      .returning();
+    return (rows[0] as any) || null;
   }
 
   static async delete(id: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .update('users')
-      .set({ is_active: false, updated_at: new Date() })
-      .where('id', id)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .update(users)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning({ id: users.id });
+    return rows.length > 0;
   }
 
   static async list(page: number = 1, limit: number = 10): Promise<{ users: User[], total: number }> {
     const offset = (page - 1) * limit;
-
-    // Get users
-    const { query: usersSql, params: usersParams } = QueryBuilder
-      .select('users')
-      .where('is_active = true')
-      .orderBy('created_at', 'DESC')
-      .limit(limit)
-      .offset(offset)
-      .build();
-
-    // Get total count
-    const countSql = 'SELECT COUNT(*) as total FROM users WHERE is_active = true';
-
-    const [usersResult, countResult] = await Promise.all([
-      query(usersSql, usersParams),
-      query(countSql)
+    const [rows, countRows] = await Promise.all([
+      db
+        .select()
+        .from(users)
+        .where(eq(users.isActive, true))
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`COUNT(*)` }).from(users).where(eq(users.isActive, true)),
     ]);
-
-    return {
-      users: usersResult.rows,
-      total: parseInt(countResult.rows[0].total)
-    };
+    return { users: rows as any, total: Number(countRows[0]?.count ?? 0) };
   }
 
   static async validatePassword(user: User, password: string): Promise<boolean> {
@@ -146,18 +119,12 @@ export class UserModel {
 
   static async updatePassword(id: string, newPassword: string): Promise<boolean> {
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    
-    const { query: sql, params } = QueryBuilder
-      .update('users')
-      .set({ 
-        password: hashedPassword,
-        updated_at: new Date()
-      })
-      .where('id', id)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning({ id: users.id });
+    return rows.length > 0;
   }
 }
 

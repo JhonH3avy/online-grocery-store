@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 
 import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
-import { prisma, checkDatabaseConnection, disconnectPrisma } from './services/prisma';
+import { checkDatabaseConnection, closeDatabaseConnection } from './services/database';
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -110,13 +110,13 @@ app.listen(PORT, async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
-  await disconnectPrisma();
+  await closeDatabaseConnection();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
-  await disconnectPrisma();
+  await closeDatabaseConnection();
   process.exit(0);
 });
 

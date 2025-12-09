@@ -1,45 +1,39 @@
-// Compatibility layer for legacy code - wraps Prisma
-import { prisma } from './prisma';
-import type { PrismaClient } from '@prisma/client';
+// Legacy database helpers replaced by Drizzle/pg usage. Keeping minimal stubs to avoid breaking imports.
+import { getPool } from './drizzle';
 
-// Helper function for queries
 export const query = async (text: string, params?: any[]): Promise<any> => {
-  // If the provided SQL contains multiple statements, split and execute them
-  // individually. Some Postgres drivers disallow sending multiple statements
-  // in a single prepared statement, which causes the "cannot insert multiple
-  // commands into a prepared statement" error. Splitting avoids that.
-  const statements = text
-    .split(';')
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  if (statements.length > 1) {
-    let lastResult: any;
-    for (const stmt of statements) {
-      // Use executeRawUnsafe for statements that don't return rows
-      lastResult = await prisma.$executeRawUnsafe(stmt);
-    }
-    return { rows: [] };
-  }
-
-  const result = params && params.length
-    ? await prisma.$queryRawUnsafe(text, ...(params || []))
-    : await prisma.$queryRawUnsafe(text);
-
-  return { rows: Array.isArray(result) ? result : [result] };
-};
-
-// Helper function for transactions
-export const transaction = async (callback: (client: PrismaClient) => Promise<any>): Promise<any> => {
-  return prisma.$transaction(async (tx: any) => {
-    return await callback(tx as PrismaClient);
-  });
-};
-
-// Health check
-export const checkDatabaseConnection = async (): Promise<boolean> => {
+  const pool = getPool();
+  const client = await pool.connect();
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    const result = await client.query(text, params);
+    return { rows: result.rows };
+  } finally {
+    client.release();
+  }
+};
+
+export const transaction = async (callback: (client: any) => Promise<any>): Promise<any> => {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const res = await callback(client);
+    await client.query('COMMIT');
+    return res;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
+export const checkDatabaseConnection = async (): Promise<boolean> => {
+  const pool = getPool();
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
     return true;
   } catch (error) {
     console.error('Database connection failed:', error);
@@ -47,9 +41,9 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
   }
 };
 
-// Graceful shutdown
 export const closeDatabaseConnection = async (): Promise<void> => {
-  await prisma.$disconnect();
+  const pool = getPool();
+  await pool.end();
 };
 
 export default { query, transaction, checkDatabaseConnection, closeDatabaseConnection };

@@ -1,5 +1,6 @@
-import { query } from '../services/database';
-import { QueryBuilder } from '../services/queryBuilder';
+import { db } from '../services/drizzle';
+import { cartItems, products } from '../db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 export interface CartItem {
   id: string;
@@ -23,92 +24,90 @@ export interface CartItemWithProduct extends CartItem {
 
 export class CartModel {
   static async findByUserId(userId: string): Promise<CartItemWithProduct[]> {
-    const sql = `
-      SELECT 
-        ci.*,
-        JSON_BUILD_OBJECT(
-          'id', p.id,
-          'name', p.name,
-          'price', p.price,
-          'unit', p.unit,
-          'image_url', p.image_url,
-          'is_active', p.is_active
-        ) as product
-      FROM cart_items ci
-      JOIN products p ON ci.product_id = p.id
-      WHERE ci.user_id = $1 AND p.is_active = true
-      ORDER BY ci.created_at DESC
-    `;
-
-    const result = await query(sql, [userId]);
-    return result.rows;
+    const rows = await db
+      .select({
+        id: cartItems.id,
+        user_id: cartItems.userId,
+        product_id: cartItems.productId,
+        quantity: cartItems.quantity,
+        created_at: cartItems.createdAt,
+        updated_at: cartItems.updatedAt,
+        p_id: products.id,
+        p_name: products.name,
+        p_price: products.price,
+        p_unit: products.unit,
+        p_image_url: products.imageUrl,
+        p_is_active: products.isActive,
+      })
+      .from(cartItems)
+      .innerJoin(products, eq(cartItems.productId, products.id))
+      .where(eq(cartItems.userId, userId))
+      .orderBy(desc(cartItems.createdAt));
+    return rows.map((r: any) => ({
+      id: r.id,
+      user_id: r.user_id,
+      product_id: r.product_id,
+      quantity: r.quantity,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      product: {
+        id: r.p_id,
+        name: r.p_name,
+        price: r.p_price,
+        unit: r.p_unit,
+        image_url: r.p_image_url,
+        is_active: r.p_is_active,
+      },
+    })) as any;
   }
 
   static async findCartItem(userId: string, productId: string): Promise<CartItem | null> {
-    const { query: sql, params } = QueryBuilder
-      .select('cart_items')
-      .where('user_id', userId)
-      .where('product_id', productId)
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .select()
+      .from(cartItems)
+      .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, productId)))
+      .limit(1);
+    return (rows[0] as any) || null;
   }
 
   static async addItem(userId: string, productId: string, quantity: number): Promise<CartItem> {
-    const { query: sql, params } = QueryBuilder
-      .insert('cart_items')
+    const now = new Date();
+    const rows = await db
+      .insert(cartItems)
       .values({
         id: crypto.randomUUID(),
-        user_id: userId,
-        product_id: productId,
+        userId: userId,
+        productId: productId,
         quantity: quantity,
-        created_at: new Date(),
-        updated_at: new Date()
+        createdAt: now,
+        updatedAt: now,
       })
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0];
+      .returning();
+    return rows[0] as any;
   }
 
   static async updateQuantity(userId: string, productId: string, quantity: number): Promise<CartItem | null> {
-    const { query: sql, params } = QueryBuilder
-      .update('cart_items')
-      .set({
-        quantity: quantity,
-        updated_at: new Date()
-      })
-      .where('user_id', userId)
-      .where('product_id', productId)
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .update(cartItems)
+      .set({ quantity, updatedAt: new Date() })
+      .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, productId)))
+      .returning();
+    return (rows[0] as any) || null;
   }
 
   static async removeItem(userId: string, productId: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .delete('cart_items')
-      .where('user_id', userId)
-      .where('product_id', productId)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .delete(cartItems)
+      .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, productId)))
+      .returning({ id: cartItems.id });
+    return rows.length > 0;
   }
 
   static async clearCart(userId: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .delete('cart_items')
-      .where('user_id', userId)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount >= 0; // Returns true even if cart was already empty
+    await db
+      .delete(cartItems)
+      .where(eq(cartItems.userId, userId));
+    return true;
   }
 
   static async getCartSummary(userId: string): Promise<{

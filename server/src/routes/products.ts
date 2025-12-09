@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { ProductModel } from '../models/Product';
-import { prisma } from '../services/prisma';
+import { db } from '../services/drizzle';
+import { products, categories, subcategories, inventory, reviews, users } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -181,25 +183,9 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Fetch product with relations using Prisma
-    const product = await prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        subcategory: true,
-        inventory: true,
-        reviews: {
-          include: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-              }
-            }
-          }
-        }
-      }
-    });
+    // Fetch product with relations using Drizzle
+    const productRows = await db.select().from(products).where(eq(products.id, id)).limit(1);
+    const product = productRows[0] as any;
 
     if (!product || !product.isActive) {
       return res.status(404).json({
@@ -207,6 +193,26 @@ router.get('/:id', async (req, res) => {
         error: 'Product not found'
       });
     }
+
+    // Load related category, subcategory, inventory
+    const [categoryRow, subcategoryRow, inventoryRow] = await Promise.all([
+      db.select().from(categories).where(eq(categories.id, product.categoryId)).limit(1),
+      db.select().from(subcategories).where(eq(subcategories.id, product.subcategoryId)).limit(1),
+      db.select().from(inventory).where(eq(inventory.productId, product.id)).limit(1),
+    ]);
+
+    const reviewRows = await db
+      .select({
+        id: reviews.id,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+      })
+      .from(reviews)
+      .innerJoin(users, eq(reviews.userId, users.id))
+      .where(and(eq(reviews.productId, product.id)));
 
     // Transform product data to include enhanced fields
     const transformedProduct = {
@@ -219,20 +225,20 @@ router.get('/:id', async (req, res) => {
       categoryId: product.categoryId,
       subcategoryId: product.subcategoryId,
       featured: product.isFeatured,
-      stock: product.inventory?.quantity || 0,
-      available: (product.inventory?.quantity || 0) > 0 && product.isActive,
+      stock: (inventoryRow[0] as any)?.quantity || 0,
+      available: ((inventoryRow[0] as any)?.quantity || 0) > 0 && product.isActive,
       isActive: product.isActive,
-      reviews: product.reviews.map((review: any) => ({
-        id: review.id,
-        rating: review.rating,
-        comment: review.comment,
-        userName: `${review.user.firstName} ${review.user.lastName}`,
-        createdAt: review.createdAt
+      reviews: reviewRows.map((r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        userName: `${r.userFirstName} ${r.userLastName}`,
+        createdAt: r.createdAt,
       })),
-      avgRating: product.reviews.length > 0 
-        ? product.reviews.reduce((sum: number, review: any) => sum + review.rating, 0) / product.reviews.length
+      avgRating: reviewRows.length > 0
+        ? reviewRows.reduce((sum: number, r: any) => sum + r.rating, 0) / reviewRows.length
         : 0,
-      reviewCount: product.reviews.length
+      reviewCount: reviewRows.length
     };
 
     return res.status(200).json({

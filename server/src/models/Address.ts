@@ -1,5 +1,6 @@
-import { query } from '../services/database';
-import { QueryBuilder } from '../services/queryBuilder';
+import { db } from '../services/drizzle';
+import { addresses } from '../db/schema';
+import { eq, and, desc } from 'drizzle-orm';
 
 export interface Address {
   id: string;
@@ -36,108 +37,76 @@ export interface UpdateAddressData {
 
 export class AddressModel {
   static async findByUserId(userId: string): Promise<Address[]> {
-    const { query: sql, params } = QueryBuilder
-      .select('addresses')
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .orderBy('is_default', 'DESC')
-      .build();
-
-    // Add secondary sort by created_at
-    const finalSql = sql.replace('ORDER BY is_default DESC', 'ORDER BY is_default DESC, created_at DESC');
-
-    const result = await query(finalSql, params);
-    return result.rows;
+    const rows = await db
+      .select()
+      .from(addresses)
+      .where(and(eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)))
+      .orderBy(desc(addresses.isDefault), desc(addresses.createdAt));
+    return rows as any;
   }
 
   static async findById(id: string, userId: string): Promise<Address | null> {
-    const { query: sql, params } = QueryBuilder
-      .select('addresses')
-      .where('id', id)
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .select()
+      .from(addresses)
+      .where(and(eq(addresses.id, id), eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)))
+      .limit(1);
+    return (rows[0] as any) || null;
   }
 
   static async create(addressData: CreateAddressData): Promise<Address> {
-    const { query: sql, params } = QueryBuilder
-      .insert('addresses')
+    const now = new Date();
+    const rows = await db
+      .insert(addresses)
       .values({
         id: crypto.randomUUID(),
-        user_id: addressData.userId,
+        userId: addressData.userId,
         street: addressData.street,
         city: addressData.city,
         state: addressData.state,
-        zip_code: addressData.zipCode,
+        zipCode: addressData.zipCode,
         country: addressData.country || 'Colombia',
-        is_default: addressData.isDefault || false,
-        is_deleted: false,
-        created_at: new Date(),
-        updated_at: new Date()
+        isDefault: addressData.isDefault || false,
+        isDeleted: false as any,
+        createdAt: now,
+        updatedAt: now,
       })
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0];
+      .returning();
+    return rows[0] as any;
   }
 
   static async update(id: string, userId: string, addressData: UpdateAddressData): Promise<Address | null> {
-    const updateData: any = {
-      updated_at: new Date()
-    };
+    const updateData: any = { updatedAt: new Date() };
 
     if (addressData.street) updateData.street = addressData.street;
     if (addressData.city) updateData.city = addressData.city;
     if (addressData.state) updateData.state = addressData.state;
-    if (addressData.zipCode) updateData.zip_code = addressData.zipCode;
+    if (addressData.zipCode) updateData.zipCode = addressData.zipCode;
     if (addressData.country) updateData.country = addressData.country;
-    if (addressData.isDefault !== undefined) updateData.is_default = addressData.isDefault;
+    if (addressData.isDefault !== undefined) updateData.isDefault = addressData.isDefault;
 
-    const { query: sql, params } = QueryBuilder
-      .update('addresses')
+    const rows = await db
+      .update(addresses)
       .set(updateData)
-      .where('id', id)
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+      .where(and(eq(addresses.id, id), eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)))
+      .returning();
+    return (rows[0] as any) || null;
   }
 
   static async delete(id: string, userId: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .update('addresses')
-      .set({
-        is_deleted: true,
-        updated_at: new Date()
-      })
-      .where('id', id)
-      .where('user_id', userId)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .update(addresses)
+      .set({ isDeleted: true as any, updatedAt: new Date() })
+      .where(and(eq(addresses.id, id), eq(addresses.userId, userId)))
+      .returning({ id: addresses.id });
+    return rows.length > 0;
   }
 
   static async clearDefaultFlag(userId: string): Promise<void> {
-    const { query: sql, params } = QueryBuilder
-      .update('addresses')
-      .set({
-        is_default: false,
-        updated_at: new Date()
-      })
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .build();
-
-    await query(sql, params);
+    await db
+      .update(addresses)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(and(eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)));
   }
 
   static async setAsDefault(id: string, userId: string): Promise<boolean> {
@@ -145,32 +114,21 @@ export class AddressModel {
     await this.clearDefaultFlag(userId);
 
     // Then set this address as default
-    const { query: sql, params } = QueryBuilder
-      .update('addresses')
-      .set({
-        is_default: true,
-        updated_at: new Date()
-      })
-      .where('id', id)
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .update(addresses)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(and(eq(addresses.id, id), eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)))
+      .returning({ id: addresses.id });
+    return rows.length > 0;
   }
 
   static async exists(id: string, userId: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .select('addresses', ['id'])
-      .where('id', id)
-      .where('user_id', userId)
-      .where('is_deleted = false')
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows.length > 0;
+    const rows = await db
+      .select({ id: addresses.id })
+      .from(addresses)
+      .where(and(eq(addresses.id, id), eq(addresses.userId, userId), eq(addresses.isDeleted as any, false)))
+      .limit(1);
+    return rows.length > 0;
   }
 }
 

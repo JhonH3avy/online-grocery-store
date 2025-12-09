@@ -28,9 +28,13 @@ jobs:
 
       - name: npm install, build, and test
         working-directory: server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           npm install --ignore-scripts
-          npx prisma generate
+          # Generate and run Drizzle migrations (requires DATABASE_URL secret)
+          npx drizzle-kit generate || true
+          npx drizzle-kit migrate || true
           npm run build --if-present
           npm run test --if-present
 
@@ -82,4 +86,12 @@ jobs:
           app-name: 'online-grocery-store-server'
           slot-name: 'Production'
           package: .
+
+      - name: Run database migrations on Azure
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd server
+          npm install --ignore-scripts
+          npx drizzle-kit migrate
           

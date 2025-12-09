@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
-import { prisma } from '../services/prisma';
+import { db } from '../services/drizzle';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 const router = Router();
 
@@ -36,19 +38,21 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
   try {
     const userId = req.user!.id;
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-        isActive: true,
-      }
-    });
+    const rows = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        role: users.role,
+        createdAt: users.createdAt,
+        isActive: users.isActive,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const user = rows[0];
 
     if (!user) {
       return res.status(404).json({
@@ -79,9 +83,12 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 
     // Check if email is already taken by another user
     if (validatedData.email !== req.user!.email) {
-      const existingUser = await prisma.user.findUnique({
-        where: { email: validatedData.email }
-      });
+      const existingRows = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, validatedData.email))
+        .limit(1);
+      const existingUser = existingRows[0];
 
       if (existingUser && existingUser.id !== userId) {
         return res.status(400).json({
@@ -92,25 +99,27 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
     }
 
     // Update user profile
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: {
+    const updatedRows = await db
+      .update(users)
+      .set({
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         email: validatedData.email,
         phone: validatedData.phone || null,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        role: true,
-        createdAt: true,
-        isActive: true,
-      }
-    });
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        role: users.role,
+        createdAt: users.createdAt,
+        isActive: users.isActive,
+      });
+    const updatedUser = updatedRows[0];
 
     return res.json({
       success: true,

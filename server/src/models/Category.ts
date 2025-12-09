@@ -1,5 +1,6 @@
-import { query } from '../services/database';
-import { QueryBuilder } from '../services/queryBuilder';
+import { db } from '../services/drizzle';
+import { categories, subcategories } from '../db/schema';
+import { eq, sql, asc, and } from 'drizzle-orm';
 import { normalizeString } from '../utils/stringUtils';
 
 export interface Category {
@@ -25,156 +26,94 @@ export interface CategoryWithSubcategories extends Category {
 
 export class CategoryModel {
   static async findAll(): Promise<CategoryWithSubcategories[]> {
-    const sql = `
-      SELECT 
-        c.*,
-        COALESCE(
-          JSON_AGG(
-            CASE 
-              WHEN s.id IS NOT NULL THEN 
-                JSON_BUILD_OBJECT(
-                  'id', s.id,
-                  'name', s.name,
-                  'slug', s.slug,
-                  'category_id', s.category_id,
-                  'created_at', s.created_at,
-                  'updated_at', s.updated_at
-                )
-              ELSE NULL 
-            END
-            ORDER BY s.name ASC
-          ) FILTER (WHERE s.id IS NOT NULL), 
-          '[]'::json
-        ) as subcategories
-      FROM categories c
-      LEFT JOIN subcategories s ON c.id = s.category_id
-      GROUP BY c.id, c.name, c.slug, c.created_at, c.updated_at
-      ORDER BY c.name ASC
-    `;
-
-    const result = await query(sql);
-    return result.rows;
+    const rows = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        created_at: categories.createdAt,
+        updated_at: categories.updatedAt,
+        subcategories: sql`COALESCE(JSON_AGG(JSON_BUILD_OBJECT('id', ${subcategories.id}, 'name', ${subcategories.name}, 'slug', ${subcategories.slug}, 'category_id', ${subcategories.categoryId}, 'created_at', ${subcategories.createdAt}, 'updated_at', ${subcategories.updatedAt}) ORDER BY ${subcategories.name} ASC) FILTER (WHERE ${subcategories.id} IS NOT NULL), '[]'::json)`
+      })
+      .from(categories)
+      .leftJoin(subcategories, eq(subcategories.categoryId, categories.id))
+      .groupBy(categories.id, categories.name, categories.slug, categories.createdAt, categories.updatedAt)
+      .orderBy(asc(categories.name));
+    return rows as any;
   }
 
   static async findById(id: string): Promise<CategoryWithSubcategories | null> {
-    const sql = `
-      SELECT 
-        c.*,
-        COALESCE(
-          JSON_AGG(
-            CASE 
-              WHEN s.id IS NOT NULL THEN 
-                JSON_BUILD_OBJECT(
-                  'id', s.id,
-                  'name', s.name,
-                  'slug', s.slug,
-                  'category_id', s.category_id,
-                  'created_at', s.created_at,
-                  'updated_at', s.updated_at
-                )
-              ELSE NULL 
-            END
-            ORDER BY s.name ASC
-          ) FILTER (WHERE s.id IS NOT NULL), 
-          '[]'::json
-        ) as subcategories
-      FROM categories c
-      LEFT JOIN subcategories s ON c.id = s.category_id
-      WHERE c.id = $1
-      GROUP BY c.id, c.name, c.slug, c.created_at, c.updated_at
-    `;
-
-    const result = await query(sql, [id]);
-    return result.rows[0] || null;
+    const rows = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        created_at: categories.createdAt,
+        updated_at: categories.updatedAt,
+        subcategories: sql`COALESCE(JSON_AGG(JSON_BUILD_OBJECT('id', ${subcategories.id}, 'name', ${subcategories.name}, 'slug', ${subcategories.slug}, 'category_id', ${subcategories.categoryId}, 'created_at', ${subcategories.createdAt}, 'updated_at', ${subcategories.updatedAt}) ORDER BY ${subcategories.name} ASC) FILTER (WHERE ${subcategories.id} IS NOT NULL), '[]'::json)`
+      })
+      .from(categories)
+      .leftJoin(subcategories, eq(subcategories.categoryId, categories.id))
+      .where(eq(categories.id, id))
+      .groupBy(categories.id, categories.name, categories.slug, categories.createdAt, categories.updatedAt);
+    return (rows[0] as any) || null;
   }
 
   static async findByName(name: string): Promise<CategoryWithSubcategories | null> {
     const normalizedName = normalizeString(name);
-    
-    const sql = `
-      SELECT 
-        c.*,
-        COALESCE(
-          JSON_AGG(
-            CASE 
-              WHEN s.id IS NOT NULL THEN 
-                JSON_BUILD_OBJECT(
-                  'id', s.id,
-                  'name', s.name,
-                  'slug', s.slug,
-                  'category_id', s.category_id,
-                  'created_at', s.created_at,
-                  'updated_at', s.updated_at
-                )
-              ELSE NULL 
-            END
-            ORDER BY s.name ASC
-          ) FILTER (WHERE s.id IS NOT NULL), 
-          '[]'::json
-        ) as subcategories
-      FROM categories c
-      LEFT JOIN subcategories s ON c.id = s.category_id
-      WHERE c.slug = $1 
-         OR c.slug = $2
-         OR LOWER(TRANSLATE(c.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $2
-      GROUP BY c.id, c.name, c.slug, c.created_at, c.updated_at
-    `;
-
-    const result = await query(sql, [name, normalizedName]);
-    return result.rows[0] || null;
+    const rows = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        created_at: categories.createdAt,
+        updated_at: categories.updatedAt,
+        subcategories: sql`COALESCE(JSON_AGG(JSON_BUILD_OBJECT('id', ${subcategories.id}, 'name', ${subcategories.name}, 'slug', ${subcategories.slug}, 'category_id', ${subcategories.categoryId}, 'created_at', ${subcategories.createdAt}, 'updated_at', ${subcategories.updatedAt}) ORDER BY ${subcategories.name} ASC) FILTER (WHERE ${subcategories.id} IS NOT NULL), '[]'::json)`
+      })
+      .from(categories)
+      .leftJoin(subcategories, eq(subcategories.categoryId, categories.id))
+      .where(sql`(${categories.slug} = ${name} OR ${categories.slug} = ${normalizedName} OR LOWER(TRANSLATE(${categories.name}, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = ${normalizedName})`)
+      .groupBy(categories.id, categories.name, categories.slug, categories.createdAt, categories.updatedAt);
+    return (rows[0] as any) || null;
   }
 
   static async findSubcategories(categoryId: string): Promise<Subcategory[]> {
-    const { query: sql, params } = QueryBuilder
-      .select('subcategories')
-      .where('category_id', categoryId)
-      .orderBy('name', 'ASC')
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows;
+    const rows = await db
+      .select()
+      .from(subcategories)
+      .where(eq(subcategories.categoryId, categoryId))
+      .orderBy(asc(subcategories.name));
+    return rows as any;
   }
 
   static async findSubcategoriesByName(categoryName: string): Promise<Subcategory[]> {
     const normalizedName = normalizeString(categoryName);
-    
-    const sql = `
-      SELECT s.* FROM subcategories s
-      INNER JOIN categories c ON s.category_id = c.id
-      WHERE c.slug = $1 
-         OR c.slug = $2
-         OR LOWER(TRANSLATE(c.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $2
-      ORDER BY s.name ASC
-    `;
-
-    const result = await query(sql, [categoryName, normalizedName]);
-    return result.rows;
+    const rows = await db
+      .select({ s: subcategories })
+      .from(subcategories)
+      .innerJoin(categories, eq(subcategories.categoryId, categories.id))
+      .where(sql`(${categories.slug} = ${categoryName} OR ${categories.slug} = ${normalizedName} OR LOWER(TRANSLATE(${categories.name}, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = ${normalizedName})`)
+      .orderBy(asc(subcategories.name));
+    return rows.map(r => r.s) as any;
   }
 
   static async categoryExists(id: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .select('categories', ['id'])
-      .where('id', id)
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows.length > 0;
+    const rows = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(eq(categories.id, id))
+      .limit(1);
+    return rows.length > 0;
   }
 
   static async categoryExistsByName(name: string): Promise<boolean> {
     const normalizedName = normalizeString(name);
-    
-    const sql = `
-      SELECT id FROM categories 
-      WHERE slug = $1 
-         OR slug = $2
-         OR LOWER(TRANSLATE(name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $2
-      LIMIT 1
-    `;
-
-    const result = await query(sql, [name, normalizedName]);
-    return result.rows.length > 0;
+    const rows = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(sql`(${categories.slug} = ${name} OR ${categories.slug} = ${normalizedName} OR LOWER(TRANSLATE(${categories.name}, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = ${normalizedName})`)
+      .limit(1);
+    return rows.length > 0;
   }
 }
 

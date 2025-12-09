@@ -1,6 +1,7 @@
-import { query } from '../services/database';
-import { QueryBuilder } from '../services/queryBuilder';
 import { normalizeString } from '../utils/stringUtils';
+import { db } from '../services/drizzle';
+import { eq, and, desc, ilike, gte, lte, or, sql } from 'drizzle-orm';
+import { products, categories, subcategories } from '../db/schema';
 
 export interface Product {
   id: string;
@@ -55,218 +56,152 @@ export interface ProductSearchOptions {
 
 export class ProductModel {
   static async findById(id: string): Promise<Product | null> {
-    const { query: sql, params } = QueryBuilder
-      .select('products')
-      .where('id', id)
-      .where('is_active = true')
-      .limit(1)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, id), eq(products.isActive, true)))
+      .limit(1);
+    return (rows[0] as any) || null;
   }
 
   static async create(productData: CreateProductData): Promise<Product> {
-    const { query: sql, params } = QueryBuilder
-      .insert('products')
+    const id = crypto.randomUUID();
+    const now = new Date();
+    const rows = await db
+      .insert(products)
       .values({
-        id: crypto.randomUUID(),
+        id,
         name: productData.name,
-        description: productData.description,
-        price: productData.price,
+        description: productData.description ?? null,
+        price: String(productData.price),
         unit: productData.unit,
-        image_url: productData.imageUrl,
-        category_id: productData.categoryId,
-        subcategory_id: productData.subcategoryId,
-        is_active: true,
-        is_featured: productData.isFeatured || false,
-        created_at: new Date(),
-        updated_at: new Date()
+        imageUrl: productData.imageUrl ?? null,
+        categoryId: productData.categoryId,
+        subcategoryId: productData.subcategoryId,
+        isActive: true,
+        isFeatured: productData.isFeatured || false,
+        createdAt: now,
+        updatedAt: now,
       })
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0];
+      .returning();
+    return rows[0] as any;
   }
 
   static async update(id: string, productData: UpdateProductData): Promise<Product | null> {
-    const updateData: any = {
-      updated_at: new Date()
-    };
-
+    const now = new Date();
+    const updateData: any = { updatedAt: now };
     if (productData.name) updateData.name = productData.name;
     if (productData.description !== undefined) updateData.description = productData.description;
-    if (productData.price) updateData.price = productData.price;
+    if (productData.price) updateData.price = String(productData.price);
     if (productData.unit) updateData.unit = productData.unit;
-    if (productData.imageUrl !== undefined) updateData.image_url = productData.imageUrl;
-    if (productData.categoryId) updateData.category_id = productData.categoryId;
-    if (productData.subcategoryId) updateData.subcategory_id = productData.subcategoryId;
-    if (productData.isActive !== undefined) updateData.is_active = productData.isActive;
-    if (productData.isFeatured !== undefined) updateData.is_featured = productData.isFeatured;
+    if (productData.imageUrl !== undefined) updateData.imageUrl = productData.imageUrl;
+    if (productData.categoryId) updateData.categoryId = productData.categoryId;
+    if (productData.subcategoryId) updateData.subcategoryId = productData.subcategoryId;
+    if (productData.isActive !== undefined) updateData.isActive = productData.isActive;
+    if (productData.isFeatured !== undefined) updateData.isFeatured = productData.isFeatured;
 
-    const { query: sql, params } = QueryBuilder
-      .update('products')
+    const rows = await db
+      .update(products)
       .set(updateData)
-      .where('id', id)
-      .returning(['*'])
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows[0] || null;
+      .where(eq(products.id, id))
+      .returning();
+    return (rows[0] as any) || null;
   }
 
   static async list(options: ProductSearchOptions = {}): Promise<{ products: Product[], total: number }> {
     const { page = 1, limit = 10, categoryId, subcategoryId, categoryName, subcategoryName, featured, search, minPrice, maxPrice } = options;
     const offset = (page - 1) * limit;
 
-    // Build FROM clause with JOINs if we need to filter by names
-    let fromClause = 'products p';
-    let whereClause = 'p.is_active = true';
-    const whereParams: any[] = [];
+    const filters: any[] = [eq(products.isActive, true)];
+    if (categoryId) filters.push(eq(products.categoryId, categoryId));
+    if (subcategoryId) filters.push(eq(products.subcategoryId, subcategoryId));
+    if (featured !== undefined) filters.push(eq(products.isFeatured, featured));
+    if (search) filters.push(ilike(products.name, `%${search}%`));
+    if (minPrice !== undefined) filters.push(gte(products.price as any, String(minPrice)));
+    if (maxPrice !== undefined) filters.push(lte(products.price as any, String(maxPrice)));
 
-    // Join with categories table if filtering by category name
+    // Name-based filters via joins
+    let joined: any = db.select({ p: products }).from(products);
     if (categoryName) {
-      fromClause += ' INNER JOIN categories c ON p.category_id = c.id';
       const normalizedCategoryName = normalizeString(categoryName);
-      whereParams.push(categoryName, normalizedCategoryName);
-      whereClause += ` AND (c.slug = $${whereParams.length - 1} OR c.slug = $${whereParams.length} OR LOWER(TRANSLATE(c.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $${whereParams.length})`;
+      joined = joined.innerJoin(categories, eq(products.categoryId, categories.id));
+      // emulate slug or normalized name match
+      filters.push(or(eq(categories.slug as any, categoryName), eq(categories.slug as any, normalizedCategoryName)) as any);
     }
-
-    // Join with subcategories table if filtering by subcategory name
     if (subcategoryName) {
-      fromClause += ' INNER JOIN subcategories sc ON p.subcategory_id = sc.id';
       const normalizedSubcategoryName = normalizeString(subcategoryName);
-      whereParams.push(subcategoryName, normalizedSubcategoryName);
-      whereClause += ` AND (sc.slug = $${whereParams.length - 1} OR sc.slug = $${whereParams.length} OR LOWER(TRANSLATE(sc.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $${whereParams.length})`;
+      joined = joined.innerJoin(subcategories, eq(products.subcategoryId, subcategories.id));
+      filters.push(or(eq(subcategories.slug as any, subcategoryName), eq(subcategories.slug as any, normalizedSubcategoryName)) as any);
     }
 
-    // Support legacy filtering by IDs
-    if (categoryId) {
-      whereParams.push(categoryId);
-      whereClause += ` AND p.category_id = $${whereParams.length}`;
-    }
-
-    if (subcategoryId) {
-      whereParams.push(subcategoryId);
-      whereClause += ` AND p.subcategory_id = $${whereParams.length}`;
-    }
-
-    if (featured !== undefined) {
-      whereParams.push(featured);
-      whereClause += ` AND p.is_featured = $${whereParams.length}`;
-    }
-
-    if (search) {
-      whereParams.push(`%${search}%`);
-      whereClause += ` AND (p.name ILIKE $${whereParams.length} OR p.description ILIKE $${whereParams.length})`;
-    }
-
-    if (minPrice !== undefined) {
-      whereParams.push(minPrice);
-      whereClause += ` AND p.price >= $${whereParams.length}`;
-    }
-
-    if (maxPrice !== undefined) {
-      whereParams.push(maxPrice);
-      whereClause += ` AND p.price <= $${whereParams.length}`;
-    }
-
-    // Get products
-    whereParams.push(limit, offset);
-    const productsSql = `
-      SELECT p.* FROM ${fromClause}
-      WHERE ${whereClause}
-      ORDER BY p.created_at DESC
-      LIMIT $${whereParams.length - 1} OFFSET $${whereParams.length}
-    `;
-
-    // Get total count
-    const countSql = `SELECT COUNT(p.*) as total FROM ${fromClause} WHERE ${whereClause}`;
-    const countParams = whereParams.slice(0, -2); // Remove limit and offset
-
-    const [productsResult, countResult] = await Promise.all([
-      query(productsSql, whereParams),
-      query(countSql, countParams)
+    const [rows, countRows] = await Promise.all([
+      joined
+        .where(and(...filters))
+        .orderBy(desc(products.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(products)
+        .where(and(...filters)),
     ]);
 
-    return {
-      products: productsResult.rows,
-      total: parseInt(countResult.rows[0].total)
-    };
+    const list = rows.map((r: any) => r.p ?? r);
+    const total = Number(countRows[0]?.count ?? 0);
+    return { products: list as any, total };
   }
 
   static async getFeatured(limit: number = 8): Promise<Product[]> {
-    const { query: sql, params } = QueryBuilder
-      .select('products')
-      .where('is_active = true')
-      .where('is_featured = true')
-      .orderBy('created_at', 'DESC')
-      .limit(limit)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows;
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.isActive, true), eq(products.isFeatured, true)))
+      .orderBy(desc(products.createdAt))
+      .limit(limit);
+    return rows as any;
   }
 
   static async getByCategory(categoryId: string, limit: number = 20): Promise<Product[]> {
-    const { query: sql, params } = QueryBuilder
-      .select('products')
-      .where('is_active = true')
-      .where('category_id', categoryId)
-      .orderBy('name', 'ASC')
-      .limit(limit)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rows;
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.isActive, true), eq(products.categoryId, categoryId)))
+      .orderBy(products.name)
+      .limit(limit);
+    return rows as any;
   }
 
   static async getByCategoryName(categoryName: string, limit: number = 20): Promise<Product[]> {
     const normalizedName = normalizeString(categoryName);
-    
-    const sql = `
-      SELECT p.* FROM products p
-      INNER JOIN categories c ON p.category_id = c.id
-      WHERE p.is_active = true 
-        AND (c.slug = $1 
-             OR c.slug = $3
-             OR LOWER(TRANSLATE(c.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $3)
-      ORDER BY p.name ASC
-      LIMIT $2
-    `;
-
-    const result = await query(sql, [categoryName, limit, normalizedName]);
-    return result.rows;
+    const rows = await db
+      .select({ p: products })
+      .from(products)
+      .innerJoin(categories, eq(products.categoryId, categories.id))
+      .where(and(eq(products.isActive, true), or(eq(categories.slug as any, categoryName), eq(categories.slug as any, normalizedName)) as any))
+      .orderBy(products.name)
+      .limit(limit);
+    return rows.map(r => r.p) as any;
   }
 
   static async getBySubcategoryName(subcategoryName: string, limit: number = 20): Promise<Product[]> {
     const normalizedName = normalizeString(subcategoryName);
-    
-    const sql = `
-      SELECT p.* FROM products p
-      INNER JOIN subcategories sc ON p.subcategory_id = sc.id
-      WHERE p.is_active = true 
-        AND (sc.slug = $1 
-             OR sc.slug = $3
-             OR LOWER(TRANSLATE(sc.name, 'áéíóúñÁÉÍÓÚÑ', 'aeiounAEIOUN')) = $3)
-      ORDER BY p.name ASC
-      LIMIT $2
-    `;
-
-    const result = await query(sql, [subcategoryName, limit, normalizedName]);
-    return result.rows;
+    const rows = await db
+      .select({ p: products })
+      .from(products)
+      .innerJoin(subcategories, eq(products.subcategoryId, subcategories.id))
+      .where(and(eq(products.isActive, true), or(eq(subcategories.slug as any, subcategoryName), eq(subcategories.slug as any, normalizedName)) as any))
+      .orderBy(products.name)
+      .limit(limit);
+    return rows.map(r => r.p) as any;
   }
 
   static async delete(id: string): Promise<boolean> {
-    const { query: sql, params } = QueryBuilder
-      .update('products')
-      .set({ is_active: false, updated_at: new Date() })
-      .where('id', id)
-      .build();
-
-    const result = await query(sql, params);
-    return result.rowCount > 0;
+    const rows = await db
+      .update(products)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(products.id, id))
+      .returning({ id: products.id });
+    return rows.length > 0;
   }
 }
 

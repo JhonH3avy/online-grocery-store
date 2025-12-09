@@ -134,7 +134,8 @@ jobs:
         working-directory: server
         run: |
           echo "🚀 Running database migrations for ${{ github.event.inputs.environment }}..."
-          npm run db:migrate
+          npm run drizzle:generate
+          npm run drizzle:migrate
           echo "✅ Database migrations completed successfully!"
 
       - name: Verify migration status
@@ -144,11 +145,11 @@ jobs:
           node -e "
             const { Pool } = require('pg');
             const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-            pool.query('SELECT * FROM migration_history ORDER BY executed_at DESC LIMIT 5')
+            pool.query('SELECT id, hash, created_at FROM \"__drizzle_migrations\" ORDER BY created_at DESC LIMIT 5')
               .then(result => {
                 console.log('📋 Recent migrations:');
                 result.rows.forEach(row => {
-                  console.log(\`  ✅ \${row.migration_name} - \${row.executed_at}\`);
+                  console.log(\`  ✅ id=\${row.id} hash=\${row.hash} at \${row.created_at}\`);
                 });
                 return pool.end();
               })
