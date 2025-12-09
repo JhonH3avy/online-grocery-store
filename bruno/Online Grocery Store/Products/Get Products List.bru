@@ -5,13 +5,14 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/products?limit=20&category=lácteos
+  url: {{baseUrl}}/products?limit=20&category=bebidas&subcategory=agua
   body: none
   auth: inherit
 }
 
 params:query {
   limit: 20
-  category: lácteos
+  category: bebidas
+  subcategory: agua
   ~subcategory: leche
 }

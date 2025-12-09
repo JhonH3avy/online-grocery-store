@@ -134,16 +134,22 @@ export class ProductModel {
       filters.push(or(eq(subcategories.slug as any, subcategoryName), eq(subcategories.slug as any, normalizedSubcategoryName)) as any);
     }
 
+    // Build count query with the same joins to avoid missing FROM references
+    let countQuery: any = db.select({ count: sql<number>`COUNT(*)` }).from(products);
+    if (categoryName) {
+      countQuery = countQuery.innerJoin(categories, eq(products.categoryId, categories.id));
+    }
+    if (subcategoryName) {
+      countQuery = countQuery.innerJoin(subcategories, eq(products.subcategoryId, subcategories.id));
+    }
+
     const [rows, countRows] = await Promise.all([
       joined
         .where(and(...filters))
         .orderBy(desc(products.createdAt))
         .limit(limit)
         .offset(offset),
-      db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(products)
-        .where(and(...filters)),
+      countQuery.where(and(...filters)),
     ]);
 
     const list = rows.map((r: any) => r.p ?? r);

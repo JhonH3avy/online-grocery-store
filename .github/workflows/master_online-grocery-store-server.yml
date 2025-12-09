@@ -72,6 +72,11 @@ jobs:
         with:
           name: node-app
       
+      - name: Checkout repository (for migrations)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -90,8 +95,8 @@ jobs:
       - name: Run database migrations on Azure
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        working-directory: server
         run: |
-          cd server
-          npm install --ignore-scripts
+          npm ci --no-audit --no-fund --omit=dev
           npx drizzle-kit migrate
           
