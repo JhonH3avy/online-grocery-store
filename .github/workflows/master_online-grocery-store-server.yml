@@ -90,5 +90,5 @@ jobs:
         with:
           app-name: 'online-grocery-store-server'
           slot-name: 'Production'
-          package: .
+          package: node-app
           
