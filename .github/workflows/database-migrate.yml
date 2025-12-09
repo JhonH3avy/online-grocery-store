@@ -73,7 +73,7 @@ jobs:
               
               # Remove any existing query parameters and add sslmode=require
               BASE_URL=$(echo "$DATABASE_URL" | cut -d'?' -f1)
-              echo "DATABASE_URL=${BASE_URL}?sslmode=require" >> $GITHUB_ENV
+              echo "DATABASE_URL=${BASE_URL}?sslmode=require&options=--search_path=drizzle,public" >> $GITHUB_ENV
               echo "✅ Applied SSL mode: require for Azure PostgreSQL"
               ;;
             staging)
@@ -82,7 +82,7 @@ jobs:
               
               # Remove any existing query parameters and add sslmode=require  
               BASE_URL=$(echo "$DATABASE_URL" | cut -d'?' -f1)
-              echo "DATABASE_URL=${BASE_URL}?sslmode=require" >> $GITHUB_ENV
+              echo "DATABASE_URL=${BASE_URL}?sslmode=require&options=--search_path=drizzle,public" >> $GITHUB_ENV
               echo "✅ Applied SSL mode: require for staging environment"
               ;;
             development)
@@ -145,7 +145,7 @@ jobs:
           node -e "
             const { Pool } = require('pg');
             const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-            pool.query('SELECT id, hash, created_at FROM \"__drizzle_migrations\" ORDER BY created_at DESC LIMIT 5')
+            pool.query('SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5')
               .then(result => {
                 console.log('📋 Recent migrations:');
                 result.rows.forEach(row => {
