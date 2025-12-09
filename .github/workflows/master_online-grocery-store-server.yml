@@ -31,7 +31,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          npm install --ignore-scripts
+          npm ci
           # Generate and run Drizzle migrations (requires DATABASE_URL secret)
           npx drizzle-kit generate || true
           npx drizzle-kit migrate || true
