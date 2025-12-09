@@ -175,13 +175,29 @@ export class ProductModel {
       countQuery = countQuery.innerJoin(subcategories, eq(products.subcategoryId, subcategories.id));
     }
 
+    const listQuery = joined
+      .where(and(...filters))
+      .orderBy(desc(products.createdAt))
+      .limit(limit)
+      .offset(offset);
+    const countQueryFinal = countQuery.where(and(...countFilters));
+
+    if (process.env.DB_LOG_QUERIES === 'true') {
+      try {
+        const lsql = (listQuery as any).toSQL?.();
+        const csql = (countQueryFinal as any).toSQL?.();
+        console.log('[Products:list] SQL:', lsql?.sql);
+        console.log('[Products:list] Params:', lsql?.params);
+        console.log('[Products:count] SQL:', csql?.sql);
+        console.log('[Products:count] Params:', csql?.params);
+      } catch (e) {
+        console.log('[Products] Failed to dump SQL', e);
+      }
+    }
+
     const [rows, countRows] = await Promise.all([
-      joined
-        .where(and(...filters))
-        .orderBy(desc(products.createdAt))
-        .limit(limit)
-        .offset(offset),
-      countQuery.where(and(...countFilters)),
+      listQuery,
+      countQueryFinal,
     ]);
 
     const list = rows.map((r: any) => r.p ?? r);
